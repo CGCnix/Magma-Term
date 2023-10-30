@@ -1,0 +1,4 @@
+-I
+./includes
+-I
+/usr/include/freetype2
