@@ -8,7 +8,10 @@
 #include <xcb/xproto.h>
 #include <xcb/xcb_image.h>
 
+#include <xkbcommon/xkbcommon-names.h>
 #include <xkbcommon/xkbcommon.h>
+#include <xkbcommon/xkbcommon-x11.h>
+#include <xkbcommon/xkbcommon-keysyms.h>
 
 
 typedef struct magma_xcb_backend {
@@ -18,6 +21,10 @@ typedef struct magma_xcb_backend {
 	xcb_window_t window;
 	xcb_screen_t *screen;
 	xcb_gcontext_t gc;
+
+	struct xkb_context *xkbctx;
+	struct xkb_keymap *xkbmap;
+	struct xkb_state *xkbstate;
 } magma_xcb_backend_t;
 
 void magma_xcb_backend_deinit(magma_backend_t *backend) {
@@ -56,18 +63,69 @@ void magma_xcb_backend_expose(magma_xcb_backend_t *xcb, xcb_expose_event_t *expo
 }
 
 void magma_xcb_backend_configure(magma_xcb_backend_t *xcb, xcb_configure_notify_event_t *notify) {
-
-}
-
-void magma_xcb_backend_key_press(magma_xcb_backend_t *xcb, xcb_key_press_event_t *press) {
-	printf("KEY: %x\n", press->detail);
-
-	if(xcb->impl.key_press) {	
-		xcb->impl.key_press((void*)xcb, press->detail, xcb->impl.key_data);
+	if(xcb->impl.resize) {
+		xcb->impl.resize((void*)xcb, notify->height, notify->width, xcb->impl.resize_data);
 	}
 }
 
+void magma_xcb_xkb_update_mods(struct xkb_state *state, int pressed, xkb_mod_mask_t new_depressed) {
+	xkb_mod_mask_t depressed = xkb_state_serialize_mods(state, XKB_STATE_DEPRESSED);
+	xkb_mod_mask_t outdep;
+
+	printf("MOD MASK: %x, %x\n", depressed, new_depressed);
+
+	if(pressed) {
+		depressed |= new_depressed;
+	} else {
+		depressed &= ~new_depressed;
+	}
+
+	xkb_state_update_mask(state, depressed, 
+			0, 0, 0, 0, 0);
+}
+
+void magma_xcb_backend_key_press(magma_xcb_backend_t *xcb, xcb_key_press_event_t *press) {
+	char *buffer;
+	int length;
+	if(press->detail == 50) {
+		magma_xcb_xkb_update_mods(xcb->xkbstate, 1, XCB_MOD_MASK_SHIFT);
+		return;
+	}
+	if(press->detail == 108) {
+		magma_xcb_xkb_update_mods(xcb->xkbstate, 1, XCB_MOD_MASK_5);
+		return;
+	}
+
+	length = xkb_state_key_get_utf8(xcb->xkbstate, press->detail, NULL, 0) + 1;
+	
+	buffer = calloc(1, length);
+
+	xkb_state_key_get_utf8(xcb->xkbstate, press->detail, buffer, length);
+	
+
+	for(int i = 0; i < length; i++) {
+		printf("%u, ", buffer[i] & 0xff);
+	}
+	printf("\n");
+
+	
+
+	if(xcb->impl.key_press) {	
+		xcb->impl.key_press((void*)xcb, buffer, length - 1, xcb->impl.key_data);
+	}
+
+}
+
 void magma_xcb_backend_key_release(magma_xcb_backend_t *xcb, xcb_key_release_event_t *release) {
+	printf("REL\n");
+	if(release->detail == 50) {
+		magma_xcb_xkb_update_mods(xcb->xkbstate, 0, XCB_MOD_MASK_SHIFT);
+	}
+	if(release->detail == 108) {
+		magma_xcb_xkb_update_mods(xcb->xkbstate, 0, XCB_MOD_MASK_5);
+		return;
+	}
+
 
 }
 
@@ -186,6 +244,25 @@ magma_backend_t *magma_xcb_backend_init() {
 	printf("  white pixel...: %x\n", xcb->screen->white_pixel);
 	printf("  black pixel...: %x\n", xcb->screen->black_pixel);
 	printf("\n");
+
+	/*KEYBOARD*/
+	int device_id;
+	xcb->xkbctx = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+	xkb_x11_setup_xkb_extension(xcb->connection, 1, 0, XKB_X11_SETUP_XKB_EXTENSION_NO_FLAGS,
+				NULL, NULL, NULL, NULL);	
+
+	device_id = xkb_x11_get_core_keyboard_device_id(xcb->connection);
+	if(device_id < 0) {
+		printf("Device id error: %m\n");
+	}
+
+	xcb->xkbmap = xkb_x11_keymap_new_from_device(xcb->xkbctx, xcb->connection,
+			device_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
+
+
+
+	xcb->xkbstate = xkb_x11_state_new_from_device(xcb->xkbmap, xcb->connection, device_id);
+
 
 	xcb->impl.start = magma_xcb_backend_start;
 	xcb->impl.deinit = magma_xcb_backend_deinit;

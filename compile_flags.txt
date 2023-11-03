@@ -1,4 +1,6 @@
 -I
 ./includes
 -I
+/usr/include/libdrm
+-I
 /usr/include/freetype2

@@ -8,6 +8,8 @@
 #include <magma/private/backend/backend.h>
 #include <magma/backend/xcb.h>
 
+magma_backend_t *magma_drm_backend_init();
+
 magma_backend_t *magma_backend_init_name(const char *name) {
 	return NULL;
 }
@@ -22,7 +24,7 @@ magma_backend_t *magma_backend_init_auto() {
 		return magma_xcb_backend_init();
 	}
 
-	return NULL;
+	return magma_drm_backend_init();
 }
 
 void magma_backend_start(magma_backend_t *backend) {
@@ -52,7 +54,7 @@ void magma_backend_set_on_button(magma_backend_t *backend, void (*button_press)(
 	backend->button_data = data;
 }
 
-void magma_backend_set_on_key(magma_backend_t *backend, void (*key_press)(magma_backend_t *backend, int key, void *data), void *data) {
+void magma_backend_set_on_key(magma_backend_t *backend, void (*key_press)(magma_backend_t *backend, char *utf8, int length, void *data), void *data) {
 	backend->key_press = key_press;
 	backend->key_data = data;
 }

@@ -15,7 +15,7 @@ struct magma_backend {
 	
 	/*TODO: IMPLEMENT*/
 	void (*button_press)(magma_backend_t *backend);
-	void (*key_press)(magma_backend_t *backend, int key, void *data);
+	void (*key_press)(magma_backend_t *backend, char *utf8, int length, void *data);
 	void (*enter)(magma_backend_t *backend);
 	void (*cursor_motion)(magma_backend_t *backends);
 	void (*put_buffer)(magma_backend_t *backend, magma_buf_t *buffer);

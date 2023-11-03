@@ -22,7 +22,7 @@ typedef struct pty {
 typedef struct magmatty {
 	pty_t pty;
 
-	char buf[2560];
+	unsigned char buf[2560];
 	int use;
 
 	magma_backend_t *backend;
@@ -30,6 +30,7 @@ typedef struct magmatty {
 	FT_Library library;
 	FT_Face face;
 
+	uint32_t width, height, xpos, ypos;
 } magmatty_t;
 
 int pty_get_master_slave(int *pmaster, int *pslave) {
@@ -108,12 +109,19 @@ static int xpos = 0;
 static int ypos = 0;
 void echo_char(magmatty_t *ctx, int ch, uint32_t width, unsigned int maxAscent, uint32_t *data2) {
 	FT_Bitmap *bitmap;
+	if(ch == '\r') {
+		return;
+	}
 	if(ch == '\n') {
-		ypos +=16;
+		ypos += 13;
 		xpos = 0;
+		return;
+	} 
+	if(ch == 0x9) {
 		return;
 	}
 	FT_UInt glyphindex = FT_Get_Char_Index(ctx->face, ch);
+
 
 	FT_Load_Glyph(ctx->face, glyphindex, FT_LOAD_DEFAULT);
 	FT_Render_Glyph(ctx->face->glyph, FT_RENDER_MODE_NORMAL);
@@ -123,26 +131,30 @@ void echo_char(magmatty_t *ctx, int ch, uint32_t width, unsigned int maxAscent, 
 	for(int y = 0; y < bitmap->rows; y++) {
 		for(int x = 0; x < bitmap->width; x++) {
 			if(bitmap->buffer[y * bitmap->pitch + x]) {
-				if(xpos + 16 >= width) {
-					ypos += 16;
+				if(xpos + 32 >= width) {
+					ypos += 13;
 					xpos = 0;
 				}
-				data2[(20 + y + ypos + (maxAscent - ctx->face->glyph->bitmap_top)) * width + 20 + x + xpos] = bitmap->buffer[y * bitmap->width + x];
+				data2[(20 + y + ypos + (maxAscent - ctx->face->glyph->bitmap_top)) * width + x + xpos] = bitmap->buffer[y * bitmap->width + x];
 
 			}
 		}
 	}
-	xpos += 16;
+	xpos += 13;
 
 }
 
-uint32_t gwidth;
-uint32_t gheight;
+uint16_t utf8_to_utf16(uint16_t b1, uint16_t b2, uint16_t b3) {
+	if((b1 & 0xe0) == 0xc0) {
+		return ((b1 & 0x1f) << 6) | (b2 & 0x3f);
+	}
+	return ((b1 & 0x0f) << 12) | ((b2 & 0x3f) << 6) | b3 & 0x3f;
+}
 
 void draw_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *data) {
+	if(width == 0) return;
 	magmatty_t *ctx = data;
 	uint32_t *data2;
-	FT_Bitmap *bitmap = &ctx->face->glyph->bitmap;
 	magma_buf_t buf = {
 		.width = width,
 		.height = height,
@@ -154,7 +166,7 @@ void draw_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *da
 	xpos = 0;
 	ypos = 0;
 
-	buf.buffer = calloc(5, width * height);
+	buf.buffer = calloc(4, width * height);
 	data2 = buf.buffer;
 	for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
@@ -166,13 +178,12 @@ void draw_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *da
 	unsigned int maxDescent = 0;
 	FT_GlyphSlot glyph;
 
-	gheight = height;
-	gwidth = width;
-
+	ctx->height = height;
+	ctx->width = width;
 	for(int i = 0; i < ctx->use; i++) {
 		FT_UInt glyphindex = FT_Get_Char_Index(ctx->face, ctx->buf[i]);
 		FT_Load_Glyph(ctx->face, glyphindex, FT_LOAD_DEFAULT);
-		FT_Render_Glyph(ctx->face->glyph, FT_RENDER_MODE_MONO);
+		FT_Render_Glyph(ctx->face->glyph, FT_RENDER_MODE_NORMAL);
 		glyph = ctx->face->glyph;
 
 		if(maxascent < ctx->face->glyph->bitmap_top) {
@@ -182,42 +193,47 @@ void draw_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *da
     		maxDescent = (glyph->metrics.height >> 6) - glyph->bitmap_top;
 		}
 	}
-
 	for(int i = 0; i < ctx->use; i++) {
-		echo_char(ctx, ctx->buf[i], width, maxascent, data2);
+		if((ctx->buf[i] & 0xf0) == 0xe0) {
+			uint16_t utf16 = utf8_to_utf16(ctx->buf[i], ctx->buf[i + 1], ctx->buf[i + 2]);
+			echo_char(ctx, utf16, width, maxascent, data2);
+			i++;
+			i++;
+		} else if((ctx->buf[i] & 0xe0) == 0xc0) {
+			uint16_t utf16 = utf8_to_utf16(ctx->buf[i], ctx->buf[i + 1], 0);
+			echo_char(ctx, utf16, width, maxascent, data2);
+			i++;
+		} else {
+			echo_char(ctx, (ctx->buf[i]), width, maxascent, data2);
+		}
 	}
 	magma_backend_put_buffer(backend, &buf);
 }
 
 static int run = 1;
-void key_cb(magma_backend_t *backend, int key, void *data){
+void key_cb(magma_backend_t *backend, char *utf8, int length, void *data){
 	magmatty_t *ctx = data;
-	if(key == 0x24) {
-		write(ctx->pty.master, "\n", 1);
+	
+	if(utf8[0] == 0x08) {
+		write(ctx->pty.master, "\177", 1);
+	} else {
+		write(ctx->pty.master, utf8, length);
 	}
-	if(key == 0x2e) {
-		write(ctx->pty.master, "l", 1);
-	}
-	if(key == 0x27) {
-		write(ctx->pty.master, "s", 1);
-	} 
-	if(key == 0x1b) {
-		write(ctx->pty.master, "r", 1);
-	}
-	if(key == 0x1a) {
-		write(ctx->pty.master, "e", 1);
-	} 
-	if(key == 0x26) {
-		write(ctx->pty.master, "a", 1);
-	}
-	if(key == 0x36) {
-		write(ctx->pty.master, "c", 1);
-	}
-
 }
 
 void resize_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *data) {
-	
+	magmatty_t *ctx = data;
+	struct winsize ws;
+	ws.ws_xpixel = width;
+	ws.ws_ypixel = height;
+	ws.ws_col = width / 13;
+	ws.ws_row = height / 13;
+
+	printf("COL: %d ROW: %d\n", ws.ws_col, ws.ws_row);
+
+	if(ioctl(ctx->pty.master, TIOCSWINSZ, &ws)) {
+		printf("Failed to update term size\n");
+	}
 }
 
 int main(int argc, char **argv) {
@@ -227,30 +243,45 @@ int main(int argc, char **argv) {
 	if(pty_get_master_slave(&ctx.pty.master, &ctx.pty.slave) < 0) {
 		return -1;
 	}
-	gwidth = 600;
-	gheight = 600;
+	
+	ctx.width = 0;
+	ctx.height = 0;
 	FT_Init_FreeType(&ctx.library);
-	FT_New_Face(ctx.library, "/usr/share/fonts/ttf/JetBrainsMonoNL-Bold.ttf", 0, &ctx.face);
+	FT_New_Face(ctx.library, "/usr/share/fonts/NerdFonts/ttf/CousineNerdFontMono-Regular.ttf", 0, &ctx.face);
 
-	FT_Set_Pixel_Sizes(ctx.face, 16, 16);
+	FT_Set_Pixel_Sizes(ctx.face, 13, 13);
 
 	fork_pty_pair(ctx.pty.master, ctx.pty.slave);
 
 	ctx.backend = magma_backend_init_auto();
-	magma_backend_start(ctx.backend);
 
+	magma_backend_set_on_resize(ctx.backend, resize_cb, &ctx);
 	magma_backend_set_on_draw(ctx.backend, draw_cb, &ctx);
 	magma_backend_set_on_key(ctx.backend, key_cb, &ctx);
-	
+
+	magma_backend_start(ctx.backend);
+
 	pfd.fd = ctx.pty.master;
 	pfd.events = POLLIN;
+	write(ctx.pty.master, "ls\n", 3);
 	while(run) {
 		magma_backend_dispatch_events(ctx.backend);
 	
 		if(poll(&pfd, 1, 10)) {
+			if(pfd.revents & POLLERR || pfd.revents & POLLHUP) {
+				printf("Child is process has closed\n");
+				return 1;
+			}
+
 			read(ctx.pty.master, &ctx.buf[ctx.use], 1);
+			printf("CHAR: %d\n", ctx.buf[ctx.use]);
+			if (ctx.buf[ctx.use] != 0x8) {
+				ctx.use++;
+			} else {
+				ctx.use--;
+			}
 		}
-		draw_cb(ctx.backend, gheight, gwidth, &ctx);
+			draw_cb(ctx.backend, ctx.height, ctx.width, &ctx);
 	}
 
 	magma_backend_deinit(ctx.backend);

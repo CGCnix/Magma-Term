@@ -1,11 +1,12 @@
 .POSIX:
 .SUFFIXES: .c .o
 
-CC=cc
-INCLUDES=-I ./includes -I /usr/include/freetype2
+CC=clang
+INCLUDES=-I ./includes -I /usr/include/libdrm -I /usr/include/freetype2
 TARGET=magma
-COBJS=src/main.o src/backend/backend.o src/backend/xcb.o
-LIBS=-lxcb -lxcb-image -lfreetype
+COBJS=src/main.o src/backend/backend.o src/backend/xcb.o src/backend/drm.o
+
+LIBS=-lxcb -lxcb-image -lfreetype -lxkbcommon -ldrm -lxkbcommon-x11
 
 .c.o:
 	$(CC) $(INCLUDES) -c -o $@ $<

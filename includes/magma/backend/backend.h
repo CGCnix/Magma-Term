@@ -23,7 +23,7 @@ void magma_backend_dispatch_events(magma_backend_t *backend);
 void magma_backend_set_on_draw(magma_backend_t *backend, void (*draw)(magma_backend_t *backend, uint32_t height, uint32_t width, void *data), void *data);
 void magma_backend_set_on_resize(magma_backend_t *backend, void (*resize)(magma_backend_t *backend, uint32_t height, uint32_t width, void *data), void *data);
 void magma_backend_set_on_button(magma_backend_t *backend, void (*button_press)(magma_backend_t *backend), void *data);
-void magma_backend_set_on_key(magma_backend_t *backend, void (*key_press)(magma_backend_t *backend, int key, void *data), void *data);
+void magma_backend_set_on_key(magma_backend_t *backend, void (*key_press)(magma_backend_t *backend, char *utf8, int length, void *data), void *data);
 void magma_backend_set_on_enter(magma_backend_t *backend, void (*enter)(magma_backend_t *backend), void *data);
 void magma_backend_set_on_cursor(magma_backend_t *backend, void (*cursor_motion)(magma_backend_t *backends), void *data);
 void magma_backend_put_buffer(magma_backend_t *backend, magma_buf_t *buffer);
