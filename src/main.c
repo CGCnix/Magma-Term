@@ -13,6 +13,7 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 
+#include <magma/logger/log.h>
 #include <magma/backend/backend.h>
 
 typedef struct pty {
@@ -243,7 +244,7 @@ int main(int argc, char **argv) {
 	if(pty_get_master_slave(&ctx.pty.master, &ctx.pty.slave) < 0) {
 		return -1;
 	}
-	
+
 	ctx.width = 0;
 	ctx.height = 0;
 	FT_Init_FreeType(&ctx.library);
@@ -274,7 +275,6 @@ int main(int argc, char **argv) {
 			}
 
 			read(ctx.pty.master, &ctx.buf[ctx.use], 1);
-			printf("CHAR: %d\n", ctx.buf[ctx.use]);
 			if (ctx.buf[ctx.use] != 0x8) {
 				ctx.use++;
 			} else {

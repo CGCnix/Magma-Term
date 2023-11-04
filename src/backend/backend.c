@@ -2,24 +2,42 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <string.h>
 #include <unistd.h>
 
 #include <magma/backend/backend.h>
 #include <magma/private/backend/backend.h>
-#include <magma/backend/xcb.h>
 
-magma_backend_t *magma_drm_backend_init();
+#include <magma/backend/xcb.h>
+#include <magma/backend/drm.h>
+#include <magma/backend/wl.h>
+
 
 magma_backend_t *magma_backend_init_name(const char *name) {
+	if(strcmp(name, "xcb") == 0) {
+		return magma_xcb_backend_init();
+	} else if(strcmp(name, "wayland") == 0) {
+		return magma_wl_backend_init();
+	} else if(strcmp(name, "drm") == 0) {
+		return magma_drm_backend_init();
+	} 
+
+	printf("Backend: %s not avliable\n", name);
 	return NULL;
 }
 
 magma_backend_t *magma_backend_init_auto() {
 	
+	/* In theroy if this is set a wayland
+	 * compositor should be running
+	 */
 	if(getenv("WAYLAND_DISPLAY")) {
-
+		return magma_wl_backend_init();
 	}
-
+	
+	/* If this is set either X server or 
+	 * Xwayland server shoudle be running
+	 */
 	if(getenv("DISPLAY")) {
 		return magma_xcb_backend_init();
 	}

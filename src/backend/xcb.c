@@ -72,8 +72,6 @@ void magma_xcb_xkb_update_mods(struct xkb_state *state, int pressed, xkb_mod_mas
 	xkb_mod_mask_t depressed = xkb_state_serialize_mods(state, XKB_STATE_DEPRESSED);
 	xkb_mod_mask_t outdep;
 
-	printf("MOD MASK: %x, %x\n", depressed, new_depressed);
-
 	if(pressed) {
 		depressed |= new_depressed;
 	} else {
@@ -102,14 +100,6 @@ void magma_xcb_backend_key_press(magma_xcb_backend_t *xcb, xcb_key_press_event_t
 
 	xkb_state_key_get_utf8(xcb->xkbstate, press->detail, buffer, length);
 	
-
-	for(int i = 0; i < length; i++) {
-		printf("%u, ", buffer[i] & 0xff);
-	}
-	printf("\n");
-
-	
-
 	if(xcb->impl.key_press) {	
 		xcb->impl.key_press((void*)xcb, buffer, length - 1, xcb->impl.key_data);
 	}
@@ -117,7 +107,6 @@ void magma_xcb_backend_key_press(magma_xcb_backend_t *xcb, xcb_key_press_event_t
 }
 
 void magma_xcb_backend_key_release(magma_xcb_backend_t *xcb, xcb_key_release_event_t *release) {
-	printf("REL\n");
 	if(release->detail == 50) {
 		magma_xcb_xkb_update_mods(xcb->xkbstate, 0, XCB_MOD_MASK_SHIFT);
 	}
