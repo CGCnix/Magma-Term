@@ -7,6 +7,7 @@
 
 #include <magma/backend/backend.h>
 #include <magma/private/backend/backend.h>
+#include <magma/logger/log.h>
 
 #include <magma/backend/xcb.h>
 #include <magma/backend/drm.h>
@@ -22,12 +23,20 @@ magma_backend_t *magma_backend_init_name(const char *name) {
 		return magma_drm_backend_init();
 	} 
 
-	printf("Backend: %s not avliable\n", name);
+	magma_log_error("Backend: %s not present\n", name);
 	return NULL;
 }
 
 magma_backend_t *magma_backend_init_auto() {
-	
+	char *override;
+
+	/*Allow overriding so I can test Xwindow from wayland*/
+	override = getenv("MAGMA_BACKEND");
+
+	if(override) {
+		return magma_backend_init_name(override);
+	}
+
 	/* In theroy if this is set a wayland
 	 * compositor should be running
 	 */

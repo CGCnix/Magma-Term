@@ -183,7 +183,7 @@ void draw_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *da
 	data2 = buf.buffer;
 	for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-			data2[y * width + x] = 0xff2a3628;
+			data2[y * width + x] = 0xa02a3628;
         }
     }
 
