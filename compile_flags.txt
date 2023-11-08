@@ -4,3 +4,5 @@
 /usr/include/libdrm
 -I
 /usr/include/freetype2
+-I
+./build

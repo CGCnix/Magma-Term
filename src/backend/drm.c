@@ -101,7 +101,6 @@ void magma_drm_backend_deinit(magma_backend_t *backend) {
 
 void magma_drm_xkb_update_mods(struct xkb_state *state, int pressed, xkb_mod_mask_t new_depressed) {
 	xkb_mod_mask_t depressed = xkb_state_serialize_mods(state, XKB_STATE_DEPRESSED);
-	xkb_mod_mask_t outdep;
 
 	printf("MOD MASK: %x, %x\n", depressed, new_depressed);
 

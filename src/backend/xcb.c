@@ -70,7 +70,6 @@ void magma_xcb_backend_configure(magma_xcb_backend_t *xcb, xcb_configure_notify_
 
 void magma_xcb_xkb_update_mods(struct xkb_state *state, int pressed, xkb_mod_mask_t new_depressed) {
 	xkb_mod_mask_t depressed = xkb_state_serialize_mods(state, XKB_STATE_DEPRESSED);
-	xkb_mod_mask_t outdep;
 
 	if(pressed) {
 		depressed |= new_depressed;

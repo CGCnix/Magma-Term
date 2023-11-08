@@ -136,7 +136,7 @@ void echo_char(magmatty_t *ctx, int ch, uint32_t width, unsigned int maxAscent, 
 					ypos += 13;
 					xpos = 0;
 				}
-				data2[(20 + y + ypos + (maxAscent - ctx->face->glyph->bitmap_top)) * width + x + xpos] = bitmap->buffer[y * bitmap->width + x];
+				data2[(20 + y + ypos + (maxAscent - ctx->face->glyph->bitmap_top)) * width + x + xpos] = 0xf8f8f8f2; //bitmap->buffer[y * bitmap->width + x];
 
 			}
 		}
@@ -149,7 +149,7 @@ uint16_t utf8_to_utf16(uint16_t b1, uint16_t b2, uint16_t b3) {
 	if((b1 & 0xe0) == 0xc0) {
 		return ((b1 & 0x1f) << 6) | (b2 & 0x3f);
 	}
-	return ((b1 & 0x0f) << 12) | ((b2 & 0x3f) << 6) | b3 & 0x3f;
+	return ((b1 & 0x0f) << 12) | ((b2 & 0x3f) << 6) | (b3 & 0x3f);
 }
 
 void draw_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *data) {
@@ -171,7 +171,7 @@ void draw_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *da
 	data2 = buf.buffer;
 	for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-			data2[y * width + x] = 0xFF000000;
+			data2[y * width + x] = 0xa0000000;
         }
     }
 
@@ -264,7 +264,6 @@ int main(int argc, char **argv) {
 
 	pfd.fd = ctx.pty.master;
 	pfd.events = POLLIN;
-	write(ctx.pty.master, "ls\n", 3);
 	while(run) {
 		magma_backend_dispatch_events(ctx.backend);
 	
@@ -281,7 +280,7 @@ int main(int argc, char **argv) {
 				ctx.use--;
 			}
 		}
-			draw_cb(ctx.backend, ctx.height, ctx.width, &ctx);
+		draw_cb(ctx.backend, ctx.height, ctx.width, &ctx);
 	}
 
 	magma_backend_deinit(ctx.backend);
