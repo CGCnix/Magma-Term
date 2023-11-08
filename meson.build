@@ -1,6 +1,6 @@
 project('magma', 'c')
 
-deps = [ dependency('libdrm'), dependency('freetype2'), dependency('xcb'), dependency('xkbcommon'), dependency('xkbcommon-x11'), dependency('xcb-image'), dependency('wayland-client')]
+deps = [ dependency('fontconfig'), dependency('libdrm'), dependency('freetype2'), dependency('xcb'), dependency('xkbcommon'), dependency('xkbcommon-x11'), dependency('xcb-image'), dependency('wayland-client')]
 
 wayland_protocols = dependency('wayland-protocols')
 wayland_scanner = dependency('wayland-scanner')

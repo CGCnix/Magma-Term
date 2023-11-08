@@ -220,7 +220,17 @@ static const struct xdg_surface_listener xdg_surface_listener = {
 
 void magma_wl_backend_dispatch(magma_backend_t *backend) {
 	magma_wl_backend_t *wl = (void*)backend;
-	wl_display_dispatch(wl->display);
+	int fd, ret;
+	struct pollfd pfd;
+
+	fd = wl_display_get_fd(wl->display);
+
+	pfd.fd = fd;
+	pfd.events = POLLIN;
+
+	while((ret = poll(&pfd, 1, 0))) {
+		wl_display_dispatch(wl->display);
+	}
 }
 
 static int allocate_shm_fd(size_t size) {
@@ -279,6 +289,8 @@ void magma_wl_backend_start(magma_backend_t *backend) {
 	magma_wl_backend_t *wl = (void*)backend;
 
 	wl_surface_commit(wl->surface);
+	wl_display_dispatch_pending(wl->display);
+	wl_display_flush(wl->display);
 }
 
 void magma_wl_backend_deinit(magma_backend_t *backend) {
