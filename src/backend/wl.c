@@ -102,7 +102,7 @@ void wl_keyboard_key(void *data, struct wl_keyboard *keyboard, uint32_t serial, 
 	if(state) {
 		wl->impl.key_press(data, buffer, size - 1, wl->impl.key_data);
 	}
-	
+	free(buffer);	
 }
 
 void wl_keyboard_mods(void *data, struct wl_keyboard *keyboard, uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked, uint32_t group) {
@@ -223,55 +223,37 @@ void magma_wl_backend_dispatch(magma_backend_t *backend) {
 	wl_display_dispatch(wl->display);
 }
 
-static void
-randname(char *buf)
-{
-    struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-    long r = ts.tv_nsec;
-    for (int i = 0; i < 6; ++i) {
-        buf[i] = 'A'+(r&15)+(r&16)*2;
-        r >>= 5;
-    }
+static int allocate_shm_fd(size_t size) {
+	int fd, ret;
+	char name[] = "/tmp/magma_wl_shm-XXXXXX";
+
+	fd = mkostemp(name, O_CLOEXEC);
+	if(fd < 0) {
+		return -1;
+	}
+	/*Unlink the name from this fd*/
+	unlink(name);
+	
+	ret = ftruncate(fd, size);
+	if(ret < 0) {
+		close(fd);
+		fd = -1;
+	}	
+
+	return fd;
 }
 
-static int
-create_shm_file(void)
-{
-    int retries = 100;
-    do {
-        char name[] = "/wl_shm-XXXXXX";
-        randname(name + sizeof(name) - 7);
-        --retries;
-        int fd = shm_open(name, O_RDWR | O_CREAT | O_EXCL, 0600);
-        if (fd >= 0) {
-            shm_unlink(name);
-            return fd;
-        }
-    } while (retries > 0 && errno == EEXIST);
-    return -1;
+void wl_buffer_release(void *data, struct wl_buffer *buffer) {
+	wl_buffer_destroy(buffer);
 }
 
-static int
-allocate_shm_file(size_t size)
-{
-    int fd = create_shm_file();
-    if (fd < 0)
-        return -1;
-    int ret;
-    do {
-        ret = ftruncate(fd, size);
-    } while (ret < 0 && errno == EINTR);
-    if (ret < 0) {
-        close(fd);
-        return -1;
-    }
-    return fd;
-}
+static const struct wl_buffer_listener wl_buffer_listener = {
+	.release = wl_buffer_release,
+};
 
 void magma_wl_backend_put_buffer(magma_backend_t *backend, magma_buf_t *buffer) {
 	magma_wl_backend_t *wl = (void*)backend;
-	int fd = allocate_shm_file(buffer->width * buffer->height * 4);
+	int fd = allocate_shm_fd(buffer->width * buffer->height * 4);
 
 
 	void *data = mmap(NULL, buffer->width * buffer->height * 4, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
@@ -280,6 +262,8 @@ void magma_wl_backend_put_buffer(magma_backend_t *backend, magma_buf_t *buffer) 
 	struct wl_buffer *buf = wl_shm_pool_create_buffer(pool, 0, buffer->width, buffer->height, buffer->width * 4, WL_SHM_FORMAT_ARGB8888);
 	wl_shm_pool_destroy(pool);
 	close(fd);
+
+	wl_buffer_add_listener(buf, &wl_buffer_listener, NULL);
 
 	memcpy(data, buffer->buffer, buffer->width * buffer->height * 4);
 
@@ -295,6 +279,39 @@ void magma_wl_backend_start(magma_backend_t *backend) {
 	magma_wl_backend_t *wl = (void*)backend;
 
 	wl_surface_commit(wl->surface);
+}
+
+void magma_wl_backend_deinit(magma_backend_t *backend) {
+	magma_wl_backend_t *wl = (void*)backend;
+
+	xkb_state_unref(wl->xkb_state);
+
+	xkb_keymap_unref(wl->xkb_keymap);
+
+	xkb_context_unref(wl->xkb_context);
+
+	xdg_toplevel_destroy(wl->xdg_toplevel);
+	
+	xdg_surface_destroy(wl->xdg_surface);
+
+	xdg_wm_base_destroy(wl->xdg_wm_base);
+
+	wl_surface_destroy(wl->surface);
+
+	wl_compositor_destroy(wl->compositor);
+
+	wl_keyboard_destroy(wl->keyboard);
+
+	wl_seat_destroy(wl->seat);
+	
+	wl_shm_destroy(wl->shm);
+
+	wl_registry_destroy(wl->registry);
+
+	wl_display_disconnect(wl->display);
+
+	free(wl);
+	
 }
 
 magma_backend_t *magma_wl_backend_init() {
@@ -323,7 +340,7 @@ magma_backend_t *magma_wl_backend_init() {
 	wl->impl.start = magma_wl_backend_start;
 	wl->impl.dispatch_events = magma_wl_backend_dispatch;
 	wl->impl.put_buffer = magma_wl_backend_put_buffer;
-	
+	wl->impl.deinit = magma_wl_backend_deinit;
 
 
 	return (void*)wl;

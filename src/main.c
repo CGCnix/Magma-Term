@@ -270,7 +270,7 @@ int main(int argc, char **argv) {
 		if(poll(&pfd, 1, 10)) {
 			if(pfd.revents & POLLERR || pfd.revents & POLLHUP) {
 				printf("Child is process has closed\n");
-				return 1;
+				run = 0;
 			}
 
 			read(ctx.pty.master, &ctx.buf[ctx.use], 1);
@@ -282,8 +282,10 @@ int main(int argc, char **argv) {
 		}
 		draw_cb(ctx.backend, ctx.height, ctx.width, &ctx);
 	}
-
 	magma_backend_deinit(ctx.backend);
+	
+	FT_Done_Face(ctx.face);
+	FT_Done_FreeType(ctx.library);
 
 	return 0;
 }
