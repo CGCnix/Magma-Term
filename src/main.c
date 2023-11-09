@@ -17,6 +17,11 @@
 #include <magma/logger/log.h>
 #include <magma/backend/backend.h>
 
+/* TODO: This entire file needs a 
+ * redo and the structures need 
+ * complete overall to be honest
+ */
+
 typedef struct pty {
 	int master, slave;
 } pty_t;
@@ -40,42 +45,9 @@ typedef struct magmatty {
 } magmatty_t;
 
 int pty_get_master_slave(int *pmaster, int *pslave) {
-	char *slave_path;
+	/*Should we use openpt?*/
+	return openpty(pmaster, pslave, NULL, NULL, NULL);
 
-	*pmaster = posix_openpt(O_RDWR | O_NOCTTY);
-	if(*pmaster < 0) {
-		printf("posix_openpt: %m\n");
-		return -1;
-	}
-
-	if(grantpt(*pmaster) < 0) {
-		close(*pmaster);
-		printf("grantpt: %m\n");
-		return -1;
-	}
-
-	if(unlockpt(*pmaster) < 0) {
-		close(*pmaster);
-		printf("unlockpt: %m\n");
-		return -1;
-	}
-
-	slave_path = ptsname(*pmaster);
-	if(slave_path == NULL)  {
-		close(*pmaster);
-		printf("ptsname: %m\n");
-		return -1;
-	}
-	printf("PTSNAME: %s\n", slave_path);
-
-	*pslave = open(slave_path, O_RDWR | O_NOCTTY);
-	if(*pslave < 0) {
-		close(*pmaster);
-		printf("open(%s): %m\n", slave_path);
-		return -1;
-	}
-
-	return *pmaster;
 };
 
 pid_t fork_pty_pair(int master, int slave) {
@@ -272,7 +244,10 @@ void font_init(magmatty_t *ctx, char *font) {
 	
 	FT_Init_FreeType(&ctx->library);
 	FT_New_Face(ctx->library, font_file, 0, &ctx->face);
+	
 
+	FcPatternDestroy(font_pattern);
+	FcPatternDestroy(pattern);
 }
 
 int main(int argc, char **argv) {
@@ -345,6 +320,8 @@ int main(int argc, char **argv) {
 	
 	FT_Done_Face(ctx.face);
 	FT_Done_FreeType(ctx.library);
-
+	
+	FcConfigDestroy(ctx.fcconfig);
+	FcFini();
 	return 0;
 }

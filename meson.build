@@ -1,5 +1,7 @@
 project('magma', 'c')
 
+add_project_arguments('-D_XOPEN_SOURCE=700', language: 'c')
+
 deps = [ dependency('fontconfig'), dependency('libdrm'), dependency('freetype2'), dependency('xcb'), dependency('xkbcommon'), dependency('xkbcommon-x11'), dependency('xcb-image'), dependency('wayland-client')]
 
 wayland_protocols = dependency('wayland-protocols')
@@ -13,16 +15,17 @@ xdg_shell_proto = protodirs + '/stable/xdg-shell/xdg-shell.xml'
 message(xdg_shell_proto)
 
 xdg_shell_headers = custom_target(
-	xdg_shell_proto.underscorify() + '-client-header',
+	'xdg_shell_header',
 	output: '@BASENAME@.h',
 	input: xdg_shell_proto,
 	command: [wayland_scanner_bin, 'client-header', '@INPUT@', '@OUTPUT@'])
 
 xdg_shell_src = custom_target(
-	xdg_shell_proto.underscorify() + '-private-code',
+	'xdg_shell_src',
 	output: '@BASENAME@.c',
 	input: xdg_shell_proto,
-	command: [wayland_scanner_bin, 'private-code', '@INPUT@', '@OUTPUT@'])
+	command: [wayland_scanner_bin, 'private-code', '@INPUT@', '@OUTPUT@']
+)
 
 
 inc = include_directories('includes')

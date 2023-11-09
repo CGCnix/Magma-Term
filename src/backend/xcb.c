@@ -34,6 +34,12 @@ typedef struct magma_xcb_backend {
 void magma_xcb_backend_deinit(magma_backend_t *backend) {
 	magma_xcb_backend_t *xcb = (void *)backend;
 
+	xkb_state_unref(xcb->xkbstate);
+
+	xkb_keymap_unref(xcb->xkbmap);
+
+	xkb_context_unref(xcb->xkbctx);
+
 	xcb_destroy_window(xcb->connection, xcb->window);
 
 	xcb_disconnect(xcb->connection);
@@ -194,7 +200,7 @@ xcb_visualtype_t *magma_xcb_match_visual(uint32_t depth, const xcb_screen_t *scr
 	
 	for(; depths_iter.rem; xcb_depth_next(&depths_iter)) {
 		
-		if(depths_iter.data->depth == 32) {
+		if(depths_iter.data->depth == depth) {
 			visual_iter = xcb_depth_visuals_iterator(depths_iter.data);
 			for(; visual_iter.rem; xcb_visualtype_next(&visual_iter)) {
 				magma_log_info("%d\n", visual_iter.data->visual_id);
@@ -248,6 +254,7 @@ magma_backend_t *magma_xcb_backend_init() {
 		error = xcb_request_check(xcb->connection, cookie);
 		if(error) {
 			magma_log_error("XCB failed to create colormap\n");
+			return NULL;
 		}
 	}
 	xcb->window = xcb_generate_id(xcb->connection);
@@ -268,7 +275,8 @@ magma_backend_t *magma_xcb_backend_init() {
 	
 	error = xcb_request_check(xcb->connection, cookie);
 	if(error) {
-		printf("Failed to create window: %d.%d.%d\n", error->error_code, error->major_code, error->minor_code);
+		magma_log_error("Failed to create window: %d.%d.%d\n", error->error_code, error->major_code, error->minor_code);
+		return NULL;
 	}
 
 	xcb->gc = xcb_generate_id(xcb->connection);
@@ -278,15 +286,12 @@ magma_backend_t *magma_xcb_backend_init() {
 	error = xcb_request_check(xcb->connection, cookie);
 	if(error) {
 		printf("Failed to create GC\n");
+		return NULL;
 	}
 
-	printf("\n");
-	printf("Informations of screen %d:\n", xcb->screen->root);
-	printf("  width.........: %d\n", xcb->screen->width_in_pixels);
-	printf("  height........: %d\n", xcb->screen->height_in_pixels);
-	printf("  white pixel...: %x\n", xcb->screen->white_pixel);
-	printf("  black pixel...: %x\n", xcb->screen->black_pixel);
-	printf("\n");
+	magma_log_info("XCB Screen Info: %d\n", xcb->screen->root);
+	magma_log_info("	width: %d\n", xcb->screen->width_in_pixels);
+	magma_log_info("	height: %d\n", xcb->screen->height_in_pixels);
 
 	/*KEYBOARD*/
 	int device_id;
@@ -297,6 +302,7 @@ magma_backend_t *magma_xcb_backend_init() {
 	device_id = xkb_x11_get_core_keyboard_device_id(xcb->connection);
 	if(device_id < 0) {
 		printf("Device id error: %m\n");
+		return NULL;	
 	}
 
 	xcb->xkbmap = xkb_x11_keymap_new_from_device(xcb->xkbctx, xcb->connection,
