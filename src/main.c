@@ -131,7 +131,7 @@ void echo_char(magmatty_t *ctx, int ch, uint32_t width, unsigned int maxAscent, 
 					ypos += 13;
 					xpos = 0;
 				}
-				data2[(20 + y + ypos + (maxAscent - ctx->face->glyph->bitmap_top)) * width + x + xpos + ctx->face->glyph->bitmap_left] = 0xfff8f8f2;
+				data2[(40 + y + ypos + (maxAscent - ctx->face->glyph->bitmap_top)) * width + 40 + x + xpos + ctx->face->glyph->bitmap_left] = 0xfff8f8f2;
 			}
 		}
 	}
@@ -330,8 +330,8 @@ int main(int argc, char **argv) {
 			} else {
 				ctx.use--;
 			}
-			draw_cb(ctx.backend, ctx.height, ctx.width, &ctx);
 		}
+		draw_cb(ctx.backend, ctx.height, ctx.width, &ctx);
 	}
 
 	FILE *fp = fopen("tbuf.txt", "w");
