@@ -190,7 +190,7 @@ void draw_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *da
 
 void key_cb(magma_backend_t *backend, char *utf8, int length, void *data){
 	magmatty_t *ctx = data;
-	
+	magma_log_info("Got to Key callback\n");	
 	if(utf8[0] == 0x08) {
 		write(ctx->pty.master, "\177", 1);
 	} else {

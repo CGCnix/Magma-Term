@@ -97,6 +97,7 @@ void magma_xcb_xkb_update_mods(struct xkb_state *state, int pressed, xkb_mod_mas
 void magma_xcb_backend_key_press(magma_xcb_backend_t *xcb, xcb_key_press_event_t *press) {
 	char *buffer;
 	int length;
+	magma_log_info("Got Keypress %d\n", press->detail);
 	if(press->detail == 50) {
 		magma_xcb_xkb_update_mods(xcb->xkbstate, 1, XCB_MOD_MASK_SHIFT);
 		return;
@@ -111,7 +112,7 @@ void magma_xcb_backend_key_press(magma_xcb_backend_t *xcb, xcb_key_press_event_t
 	buffer = calloc(1, length);
 
 	xkb_state_key_get_utf8(xcb->xkbstate, press->detail, buffer, length);
-	
+	printf("Calling Key callback\n");
 	if(xcb->impl.key_press) {	
 		xcb->impl.key_press((void*)xcb, buffer, length - 1, xcb->impl.key_data);
 	}
