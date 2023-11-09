@@ -66,14 +66,19 @@ void magma_backend_deinit(magma_backend_t *backend) {
 	backend->deinit(backend);
 }
 
-void magma_backend_set_on_draw(magma_backend_t *backend, void (*draw)(magma_backend_t *backend, uint32_t height, uint32_t width, void *data), void *data) {
+void magma_backend_set_on_draw(magma_backend_t *backend, PFN_MAGMADRAWCB draw, void *data) {
 	backend->draw = draw;
 	backend->draw_data = data;
 }
 
-void magma_backend_set_on_resize(magma_backend_t *backend, void (*resize)(magma_backend_t *backend, uint32_t height, uint32_t width, void *data), void *data) {
+void magma_backend_set_on_resize(magma_backend_t *backend, PFN_MAGMARESIZCB resize, void *data) {
 	backend->resize = resize;
 	backend->resize_data = data;
+}
+
+void magma_backend_set_on_close(magma_backend_t *backend, PFN_MAGMACLOSECB closefn, void *data) {
+	backend->close = closefn;
+	backend->close_data = data;
 }
 
 void magma_backend_set_on_button(magma_backend_t *backend, void (*button_press)(magma_backend_t *backend), void *data) {

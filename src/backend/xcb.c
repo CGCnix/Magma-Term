@@ -9,6 +9,7 @@
 #include <xcb/xproto.h>
 #include <xcb/xcb_image.h>
 
+
 #include <xkbcommon/xkbcommon-names.h>
 #include <xkbcommon/xkbcommon.h>
 #include <xkbcommon/xkbcommon-x11.h>
@@ -61,6 +62,7 @@ void magma_xcb_backend_put_buffer(magma_backend_t *backend, magma_buf_t *buffer)
 	xcb_image_t *image = xcb_image_create(buffer->width, buffer->height, XCB_IMAGE_FORMAT_Z_PIXMAP, buffer->bpp, xcb->depth, buffer->bpp, buffer->bpp, 0, XCB_IMAGE_ORDER_LSB_FIRST, buffer->buffer, buffer->width * buffer->height * 4, buffer->buffer);
 
 	xcb_image_put(xcb->connection, xcb->window, xcb->gc, image, 0, 0, 0);
+
 	xcb_image_destroy(image);
 }
 
@@ -257,8 +259,8 @@ magma_backend_t *magma_xcb_backend_init() {
 			return NULL;
 		}
 	}
-	xcb->window = xcb_generate_id(xcb->connection);
 
+	xcb->window = xcb_generate_id(xcb->connection);
 	mask = XCB_CW_BORDER_PIXEL | XCB_CW_EVENT_MASK | XCB_CW_COLORMAP;
 	values[0] = 0x000000;
 	values[1] = XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_BUTTON_PRESS |
@@ -307,8 +309,6 @@ magma_backend_t *magma_xcb_backend_init() {
 
 	xcb->xkbmap = xkb_x11_keymap_new_from_device(xcb->xkbctx, xcb->connection,
 			device_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
-
-
 
 	xcb->xkbstate = xkb_x11_state_new_from_device(xcb->xkbmap, xcb->connection, device_id);
 

@@ -30,4 +30,4 @@ xdg_shell_src = custom_target(
 
 inc = include_directories('includes')
 
-executable('magma', [ 'src/main.c', 'src/logger/log.c', 'src/backend/xcb.c', 'src/backend/wl.c', 'src/backend/drm.c', 'src/backend/backend.c', xdg_shell_src, xdg_shell_headers], dependencies : deps, include_directories : inc)
+executable('magma', [ 'src/main.c', 'src/logger/log.c', 'src/backend/xcb.c', 'src/backend/wl/wl.c', 'src/backend/wl/input.c', 'src/backend/drm.c', 'src/backend/backend.c', xdg_shell_src, xdg_shell_headers], dependencies : deps, include_directories : inc)
