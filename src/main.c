@@ -112,7 +112,7 @@ void echo_char(magmatty_t *ctx, int ch, uint32_t width, unsigned int maxAscent, 
 		uint32_t xposred = xpos / 14;
 		
 		xposred = ((xposred) | (8 - 1)) + 1; 
-		printf("XPOS: %u\n", xposred);
+		
 		xpos = xposred * 14;
 		return;
 	}
@@ -149,7 +149,6 @@ uint16_t utf8_to_utf16(uint16_t b1, uint16_t b2, uint16_t b3) {
 
 void draw_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *data) {
 	if(width == 0) return;
-	magma_log_debug("%dx%d\n", height, width);
 
 	magmatty_t *ctx = data;
 	uint32_t *data2;

@@ -130,7 +130,7 @@ static int allocate_shm_fd(size_t size) {
 	int fd, ret;
 	char name[] = "/tmp/magma_wl_shm-XXXXXX";
 
-	fd = mkostemp(name, O_CLOEXEC);
+	fd = mkstemp(name);
 	if(fd < 0) {
 		return -1;
 	}
