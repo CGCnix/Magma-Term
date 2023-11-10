@@ -178,7 +178,7 @@ void magma_drm_backend_key(magma_drm_backend_t *drm) {
 void magma_drm_backend_dispatch(magma_backend_t *backend) {
 	magma_drm_backend_t *drm = (void *)backend;
 	struct pollfd pfd;
-
+	drm->impl.resize(backend, drm->fb->height, drm->fb->width, drm->impl.resize_data);
 	drm->impl.draw(backend, drm->fb->height, drm->fb->width, drm->impl.draw_data);
 
 	pfd.fd = drm->keyfd;

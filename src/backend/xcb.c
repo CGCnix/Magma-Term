@@ -68,9 +68,12 @@ void magma_xcb_backend_put_buffer(magma_backend_t *backend, magma_buf_t *buffer)
 
 /*TODO: IMPLEMENT CALLBACKS*/
 void magma_xcb_backend_expose(magma_xcb_backend_t *xcb, xcb_expose_event_t *expose) {
+	__builtin_dump_struct(expose, &printf);
+
 	if(xcb->impl.draw) {
 		xcb->impl.draw((void *)xcb, expose->height, expose->width, xcb->impl.draw_data);
 	}
+	
 
 	xcb_flush(xcb->connection);
 }

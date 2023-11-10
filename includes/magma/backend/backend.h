@@ -4,7 +4,8 @@
 
 typedef struct magma_backend magma_backend_t;
 
-/* Buffers Auto assume RGB FORMAT
+/** 
+ * Buffers Auto assume RGB FORMAT
  * and should be used a fallback when no
  * rendering through hardware is avliable
  */
@@ -19,8 +20,25 @@ typedef void (*PFN_MAGMACLOSECB)(magma_backend_t *backend, void *data);
 typedef void (*PFN_MAGMARESIZCB)(magma_backend_t *backend, uint32_t height, uint32_t width, void *data);
 
 
+/**
+ *	@brief generate a backend from name
+ *	@param [in] string to select backend from
+ *	@retval NULL returned on error backend name doesn't exist
+ *	@retval !NULL a pointer to the backend structure
+ *	@return a pointer to the backend
+ *	
+ */
 magma_backend_t *magma_backend_init_name(const char *name);
+
+/**
+ *	@brief generate a backend from environment variables
+ *	@retval NULL returned on error backend name doesn't exist
+ *	@retval !NULL a pointer to the backend structure
+ *	@return a pointer to the backend
+ */
 magma_backend_t *magma_backend_init_auto();
+
+
 void magma_backend_start(magma_backend_t *backend);
 void magma_backend_deinit(magma_backend_t *backend);
 void magma_backend_dispatch_events(magma_backend_t *backend);

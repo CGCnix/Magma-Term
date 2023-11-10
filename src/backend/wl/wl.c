@@ -100,7 +100,7 @@ static void xdg_toplevel_configure(void *data, struct xdg_toplevel *xdg_toplevel
 	wl->height = height ? : 600;
 	wl->width = width ? : 600;
 	if(wl->impl.resize) {
-		wl->impl.resize(data, height, width, wl->impl.resize_data);
+		wl->impl.resize(data, wl->height, wl->width, wl->impl.resize_data);
 	}
 }
 
@@ -123,7 +123,7 @@ void magma_wl_backend_dispatch(magma_backend_t *backend) {
 	magma_wl_backend_t *wl = (void*)backend;
 
 	/*Is there a way to do this in a non blocking way?*/
-	wl_display_dispatch(wl->display); 
+		wl_display_dispatch(wl->display); 
 }
 
 static int allocate_shm_fd(size_t size) {
