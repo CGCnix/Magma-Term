@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <string.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -12,6 +13,8 @@
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
+#include FT_OUTLINE_H
+#include FT_BITMAP_H
 #include <fontconfig/fontconfig.h>
 
 #include <magma/logger/log.h>
@@ -49,25 +52,10 @@ int glyph_check_bit(const FT_GlyphSlot glyph, const int x, const int y)
     return (cValue & (128 >> (x & 7))) != 0;
 }
 
-static int xpos = 0;
-static int ypos = 0;
-void echo_char(magma_ctx_t *ctx, int ch, uint32_t width, unsigned int maxAscent, uint32_t *data2) {
+void echo_char(magma_ctx_t *ctx, int ch, int x, int y, uint32_t width, unsigned int maxAscent, uint32_t *data2) {
 	FT_Bitmap *bitmap;
 
 	if(ch == '\r') {
-		return;
-	}
-	if(ch == '\n') {
-		ypos += 1;
-		xpos = 0;
-		return;
-	} 
-	if(ch == 0x9) {
-		uint32_t xposred = xpos / 14;
-		
-		xposred = ((xposred) | (8 - 1)) + 1; 
-		
-		xpos = xposred * 14;
 		return;
 	}
 	FT_UInt glyphindex = FT_Get_Char_Index(ctx->face, ch);
@@ -78,27 +66,18 @@ void echo_char(magma_ctx_t *ctx, int ch, uint32_t width, unsigned int maxAscent,
 	
 	bitmap = &ctx->face->glyph->bitmap;
 
-	for(int y = 0; y < bitmap->rows; y++) {
-		for(int x = 0; x < bitmap->width; x++) {
-			if(glyph_check_bit(ctx->face->glyph, x, y)) {
-				if(xpos + (ctx->face->glyph->advance.x >> 6) >= width) {
-					ypos += 1;
-					xpos = 0;
-				}
-				data2[(20 + (y + ypos * 14) + (ctx->maxascent - ctx->face->glyph->bitmap_top)) * width + x + xpos + ctx->face->glyph->bitmap_left] = 0xfff8f8f2;
+	if(ctx->vt->lines[y][x].attributes == 1) {
+		FT_Bitmap_Embolden(ctx->library, bitmap, 1 << 6, 1 << 6);
+	}
+
+	for(int yp = 0; yp < bitmap->rows; yp++) {
+		for(int xp = 0; xp < bitmap->width; xp++) {
+			if(glyph_check_bit(ctx->face->glyph, xp, yp)) {
+				
+				data2[(20 + (yp + y * 14) + (ctx->maxascent - ctx->face->glyph->bitmap_top)) * width + xp + (x * 8) + ctx->face->glyph->bitmap_left] = ctx->vt->lines[y][x].fg;
 			}
 		}
 	}
-	xpos += ctx->face->glyph->advance.x >> 6;
-}
-
-uint16_t utf8_to_utf16(uint16_t b1, uint16_t b2, uint16_t b3) {
-	if((b1 & 0x80) == 0x00) {
-		return b1;
-	} else if((b1 & 0xe0) == 0xc0) {
-		return ((b1 & 0x1f) << 6) | (b2 & 0x3f);
-	}
-	return ((b1 & 0x0f) << 12) | ((b2 & 0x3f) << 6) | (b3 & 0x3f);
 }
 
 void draw_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *data) {
@@ -118,9 +97,6 @@ void draw_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *da
 	};
 
 
-	xpos = 0;
-	ypos = 0;
-
 	buf.buffer = calloc(4, width * height);
 	data2 = buf.buffer;
 	for (int y = 0; y < height; ++y) {
@@ -128,19 +104,13 @@ void draw_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *da
 			data2[y * width + x] = 0xa02a3628;
         }
     }
-
-	for(int i = 0; i < ctx->vt->buf_x; i++) {
-		if((ctx->vt->buf[i] & 0xf0) == 0xe0) {
-			uint16_t utf16 = utf8_to_utf16(ctx->vt->buf[i], ctx->vt->buf[i + 1], ctx->vt->buf[i + 2]);
-			echo_char(ctx, utf16, width, ctx->maxascent, data2);
-			i++;
-			i++;
-		} else if((ctx->vt->buf[i] & 0xe0) == 0xc0) {
-			uint16_t utf16 = utf8_to_utf16(ctx->vt->buf[i], ctx->vt->buf[i + 1], 0);
-			echo_char(ctx, utf16, width, ctx->maxascent, data2);
-			i++;
-		} else {
-			echo_char(ctx, (ctx->vt->buf[i]), width, ctx->maxascent, data2);
+	
+	for(int y = 0; y < ctx->vt->buf_y + 1; y++) {
+		for(int x = 0; x < ctx->vt->cols; x++) {
+			if(ctx->vt->lines[y][x].unicode == '\n' || (y == ctx->vt->buf_y && x == ctx->vt->buf_x)) {
+				break;
+			}
+			echo_char(ctx, ctx->vt->lines[y][x].unicode, x, y, width, ctx->maxascent, data2);
 		}
 	}
 	magma_backend_put_buffer(backend, &buf);
@@ -177,11 +147,22 @@ void resize_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *
 	struct winsize ws;
 	ws.ws_xpixel = width;
 	ws.ws_ypixel = height;
-	ws.ws_col = width / 8;
-	ws.ws_row = height / 8;
+	ws.ws_col = width / 10;
+	ws.ws_row = height / 10;
+
+	ctx->vt->lines = realloc(ctx->vt->lines, sizeof(void*) * ws.ws_row);
+
+
+	for(int i = 0; i < ctx->vt->rows; i++) {
+		ctx->vt->lines[i] = realloc(ctx->vt->lines[i], ws.ws_col * sizeof(glyph_t));
+	}
+
+	for(int i = ctx->vt->rows; i < ws.ws_row; i++) {
+		ctx->vt->lines[i] = calloc(sizeof(glyph_t), ws.ws_col);
+	}
+
 	ctx->vt->rows = ws.ws_row;
 	ctx->vt->cols = ws.ws_col;
-
 	ctx->width = width;
 	ctx->height = height;
 
@@ -232,9 +213,14 @@ int main(int argc, char **argv) {
 	struct pollfd pfd;
 
 	ctx.vt = calloc(1, sizeof(*ctx.vt));
-	ctx.vt->buf = calloc(1, 80 * 25);
+	ctx.vt->lines = calloc(sizeof(void *), 25);
+	for(int i = 0; i < 25; i++) {
+		ctx.vt->lines[i] = calloc(sizeof(glyph_t), 80);
+	}
 	ctx.vt->cols = 80;
 	ctx.vt->rows = 25;
+	ctx.vt->fg = 0xf8f8f2;	
+	__builtin_dump_struct(ctx.vt, &printf);
 
 	if(magma_get_pty(&ctx.vt->master, &slave) < 0) {
 		return -1;
@@ -274,15 +260,10 @@ int main(int argc, char **argv) {
 			}
 
 			vt_read_input(ctx.vt);
-			ctx.vt->buf_x++;
 		}
 		draw_cb(ctx.backend, ctx.height, ctx.width, &ctx);
+
 	}
-
-	FILE *fp = fopen("tbuf.txt", "w");
-	fwrite(ctx.vt->buf, 1, ctx.vt->buf_x, fp);
-
-	fclose(fp);
 
 	magma_backend_dispatch_events(ctx.backend);
 	magma_backend_deinit(ctx.backend);

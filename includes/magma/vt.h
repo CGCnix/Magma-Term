@@ -4,6 +4,22 @@
 #include <stdint.h>
 
 
+typedef uint32_t utf32_t;
+
+typedef struct {
+	utf32_t unicode;
+
+	uint32_t attributes;
+	/* we dont support true color yet
+	 * but lets just have the correct 
+	 * color width in case we need to 
+	 * implement it
+	 */
+	uint32_t fg, bg;
+} glyph_t;
+
+typedef glyph_t *line_t;
+
 typedef struct {
 	int master;
 
@@ -12,25 +28,11 @@ typedef struct {
 	int buf_x;
 	int buf_y;
 
-	/*	This just won't do we need to
-	 *	implement ASCII escape codes.
-	 *	We need some way to store what 
-	 *	color, attributes, etc... a character has
-	 *	
-	 *	We could store this in the character buffer directly.
-	 *	But this means having to process the escape sequence again 
-	 *	and again for every redraw of the buffer.
-	 *
-	 *	Or we could implement a structure to store all these attributes
-	 *	with the character and potentially we could store the character
-	 *	as UTF32 avoid the mess that is the current draw function
-	 *
-	 *	But I wanna talk to star before I do cause I want her opinion.
-	 *	For now the terminal does "technically work". Though it's not 
-	 *	memory safe not even close
-	 *
-	 */
-	char *buf;
+	uint32_t fg;
+	uint32_t bg;
+	uint32_t attributes;
+	
+	line_t *lines;
 } magma_vt_t;
 
 

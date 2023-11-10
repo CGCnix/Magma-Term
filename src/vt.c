@@ -1,5 +1,6 @@
 #include <pty.h>
 #include <stdint.h>
+#include <string.h>
 #include <unistd.h>
 
 #include <stdlib.h>
@@ -69,11 +70,95 @@ pid_t magma_fork_pty(const int master, int *slave) {
 	return pid;
 }
 
+static int utf8_to_utf32(utf32_t *unicode, char b1, int fd) {
+	uint8_t bytes[3];
+	utf32_t codepoint;
+	if((b1 & 0x80) == 0x00)  {
+		/*UTF8*/
+		*unicode = b1;
+	} else if((b1 & 0xe0) == 0xc0) {
+		read(fd, bytes, 1);
+		codepoint = ((b1 & 0x1f) << 6) | (bytes[0] & 0x3f);
+		*unicode = codepoint;
+	} else if((b1 & 0xF0) == 0xe0) {
+		read(fd, bytes, 2);
+		codepoint = ((b1 & 0x0f) << 12) | ((bytes[0] & 0x3f) << 6) | (bytes[1] & 0x3f);
+		*unicode = codepoint;
+	}
+
+	/*TODO UTF32 code points*/
+	else {
+	
+		/*Invalid UTF*/
+		return -1;
+	}
+
+	return 0;
+}
+
+void escape_color_change(int i, magma_vt_t *vt) {
+	magma_log_info("Changing color to: %d\n", i);
+	if(i == '1') {
+		vt->fg = 0xffff0000;
+	} else if(i == '4') {
+		vt->fg = 0xff00ffff;
+	} else {
+		vt->fg = 0xfff8f8f2;
+	}
+}
+
+void escape_set_attrs(uint32_t attrs, magma_vt_t *vt) {
+	vt->attributes = attrs;
+}
+
+void csi_escape_handle(int fd, magma_vt_t *vt) {
+	char seq[100];
+	int i = 0;
+	do {
+		read(fd, &seq[i], 1);
+		i++;
+	} while(seq[i-1] != 'm');
+
+	if(strcmp("[0m", seq) == 0) {
+		escape_set_attrs(0, vt);
+		escape_color_change(0, vt);
+	}
+	if(strcmp("[01;34m", seq) == 0) {
+		escape_set_attrs(1, vt); /*Implement attributes ENUM*/
+		escape_color_change('4', vt);
+	}
+}
+
 void vt_read_input(magma_vt_t *magmavt) {
 	uint8_t byte;
-
+	utf32_t unicode;
 	read(magmavt->master, &byte, 1);
 
-	magmavt->buf[magmavt->buf_x] = byte;
-	
+	/*ESCAPE CODE*/
+	if(byte == 0x1b) {
+		magma_log_info("Escape MODE\n");
+		csi_escape_handle(magmavt->master, magmavt);
+		return;
+	}
+
+	/* we store the character as UTF32
+	 * as it's what freetype expects
+	 * and it saves us having to process
+	 * the UTF8 character sequence into a
+	 * UTF32 character every draw sequence
+	 */
+
+	utf8_to_utf32(&unicode, byte, magmavt->master);
+
+	magmavt->lines[magmavt->buf_y][magmavt->buf_x].unicode = unicode;
+	magmavt->lines[magmavt->buf_y][magmavt->buf_x].fg = magmavt->fg;
+	magmavt->lines[magmavt->buf_y][magmavt->buf_x].attributes = magmavt->attributes;
+
+
+	if(byte == '\n' || magmavt->buf_x > magmavt->cols-2) {
+		magmavt->buf_y++;
+		magmavt->buf_x = 0;
+	} else {
+		magmavt->buf_x++;
+	}
 }
