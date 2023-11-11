@@ -1,0 +1,3 @@
+option('disable-xcb', type : 'boolean', value : false, description : 'disable xcb support')
+option('disable-wl', type : 'boolean', value : false, description : 'disable wayland support')
+option('disable-drm', type : 'boolean', value : false, description : 'disable libdrm support')

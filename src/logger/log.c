@@ -59,3 +59,16 @@ int magma_log(enum magma_log_levels level, const uint32_t line,
 
 	return len;
 }
+
+int magma_log_printf(enum magma_log_levels level, const char *fmt, ...) {
+	int len;
+	va_list args;
+
+	if(level < log_level) return 0;
+
+	va_start(args, fmt);
+	len = vprintf(fmt, args);
+	va_end(args);
+	
+	return len;
+}

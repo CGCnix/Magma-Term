@@ -7,42 +7,81 @@
 
 #include <magma/backend/backend.h>
 #include <magma/private/backend/backend.h>
+#include <magma/logger/log.h>
 
-#include <magma/backend/xcb.h>
+#ifndef _MAGMA_NO_XCB_
+	#include <magma/backend/xcb.h>
+#endif 
+
+#ifndef _MAGMA_NO_WL_
+	#include <magma/backend/wl.h>
+#endif
+
+#ifndef _MAGMA_NO_DRM_
+
 #include <magma/backend/drm.h>
-#include <magma/backend/wl.h>
-
+#endif
 
 magma_backend_t *magma_backend_init_name(const char *name) {
+	#ifndef _MAGMA_NO_XCB_
 	if(strcmp(name, "xcb") == 0) {
 		return magma_xcb_backend_init();
-	} else if(strcmp(name, "wayland") == 0) {
-		return magma_wl_backend_init();
-	} else if(strcmp(name, "drm") == 0) {
-		return magma_drm_backend_init();
 	} 
+	#endif 
+	
+	#ifndef _MAGMA_NO_WL_
+	if(strcmp(name, "wayland") == 0) {
+		return magma_wl_backend_init();
+	}
+	#endif
 
-	printf("Backend: %s not avliable\n", name);
+	#ifndef _MAGMA_NO_DRM_
+	if(strcmp(name, "drm") == 0) {
+		return magma_drm_backend_init();
+	}
+	#endif
+
+	magma_log_error("Backend: %s not present\n", name);
 	return NULL;
 }
 
 magma_backend_t *magma_backend_init_auto() {
-	
+	char *override;
+
+	#if defined(_MAGMA_NO_WL_) && defined(_MAGMA_NO_XCB_) && defined(_MAGMA_NO_DRM_)
+		#error "MAGMA COMPILED WITH NO BACKENDS\nplease remove one --disable-backend argumets"
+	#endif
+
+	/*Allow overriding so I can test Xwindow from wayland*/
+	override = getenv("MAGMA_BACKEND");
+
+	if(override) {
+		return magma_backend_init_name(override);
+	}
+
 	/* In theroy if this is set a wayland
 	 * compositor should be running
 	 */
+	#ifndef _MAGMA_NO_WL_
 	if(getenv("WAYLAND_DISPLAY")) {
 		return magma_wl_backend_init();
 	}
-	
+	#endif
 	/* If this is set either X server or 
 	 * Xwayland server shoudle be running
 	 */
+	#ifndef _MAGMA_NO_XCB_
 	if(getenv("DISPLAY")) {
 		return magma_xcb_backend_init();
 	}
+	#endif
 
+	#ifndef _MAGMA_NO_DRM_
+	
 	return magma_drm_backend_init();
+	#else 
+	return NULL;
+	#endif
 }
 
 void magma_backend_start(magma_backend_t *backend) {
@@ -57,14 +96,19 @@ void magma_backend_deinit(magma_backend_t *backend) {
 	backend->deinit(backend);
 }
 
-void magma_backend_set_on_draw(magma_backend_t *backend, void (*draw)(magma_backend_t *backend, uint32_t height, uint32_t width, void *data), void *data) {
+void magma_backend_set_on_draw(magma_backend_t *backend, PFN_MAGMADRAWCB draw, void *data) {
 	backend->draw = draw;
 	backend->draw_data = data;
 }
 
-void magma_backend_set_on_resize(magma_backend_t *backend, void (*resize)(magma_backend_t *backend, uint32_t height, uint32_t width, void *data), void *data) {
+void magma_backend_set_on_resize(magma_backend_t *backend, PFN_MAGMARESIZCB resize, void *data) {
 	backend->resize = resize;
 	backend->resize_data = data;
+}
+
+void magma_backend_set_on_close(magma_backend_t *backend, PFN_MAGMACLOSECB closefn, void *data) {
+	backend->close = closefn;
+	backend->close_data = data;
 }
 
 void magma_backend_set_on_button(magma_backend_t *backend, void (*button_press)(magma_backend_t *backend), void *data) {

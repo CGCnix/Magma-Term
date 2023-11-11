@@ -8,11 +8,10 @@ struct magma_backend {
 	void (*deinit)(magma_backend_t *backend);
 	void (*dispatch_events)(magma_backend_t *backend);
 
+	PFN_MAGMADRAWCB draw;
+	PFN_MAGMARESIZCB resize;
+	PFN_MAGMACLOSECB close;
 
-	/*resize*/
-	void (*draw)(magma_backend_t *backend, uint32_t height, uint32_t width, void *data);
-	void (*resize)(magma_backend_t *backend, uint32_t height, uint32_t width, void *data);
-	
 	/*TODO: IMPLEMENT*/
 	void (*button_press)(magma_backend_t *backend);
 	void (*key_press)(magma_backend_t *backend, char *utf8, int length, void *data);
@@ -26,4 +25,5 @@ struct magma_backend {
 	void *key_data;
 	void *enter_data;
 	void *cursor_data;
+	void *close_data;
 };
