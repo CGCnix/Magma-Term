@@ -10,11 +10,13 @@
 #include <sys/mman.h>
 #include <xkbcommon/xkbcommon.h>
 
+#define UNUSED(x) ((void)x)
 /*
  * Wl_keyboard
  */
 
 static void wl_keyboard_keymap(void *data, struct wl_keyboard *keyboard, uint32_t keymap_id, int32_t keymap_fd, uint32_t size) {
+	UNUSED(keyboard);
 	magma_wl_backend_t *wl;
 	char *keymap_str;
 	magma_log_debug("Kemap event: %d %d %d\n", keymap_id, keymap_fd, size);
@@ -30,11 +32,18 @@ static void wl_keyboard_keymap(void *data, struct wl_keyboard *keyboard, uint32_
 }
 
 static void wl_keyboard_enter(void *data, struct wl_keyboard *keyboard, uint32_t serial, struct wl_surface *surface, struct wl_array *keys) {
-
+	UNUSED(data);
+	UNUSED(keyboard);
+	UNUSED(serial);
+	UNUSED(keys);
+	UNUSED(surface);
 }
 
 static void wl_keyboard_leave(void *data, struct wl_keyboard *keyboard, uint32_t serial, struct wl_surface *surface) {
-
+	UNUSED(data);
+	UNUSED(keyboard);
+	UNUSED(serial);
+	UNUSED(surface);
 }
 
 static void wl_keyboard_key(void *data, struct wl_keyboard *keyboard, uint32_t serial, uint32_t time, uint32_t key, uint32_t state) {
@@ -42,7 +51,9 @@ static void wl_keyboard_key(void *data, struct wl_keyboard *keyboard, uint32_t s
 	char *buffer;
 	size_t size;
 	magma_log_debug("Key Event: %d(%d)\n", key, state);
-	
+	UNUSED(time);
+	UNUSED(serial);
+	UNUSED(keyboard);
 	wl = data;
 
 
@@ -52,11 +63,6 @@ static void wl_keyboard_key(void *data, struct wl_keyboard *keyboard, uint32_t s
 	
 	xkb_state_key_get_utf8(wl->xkb_state, key + 8, buffer, size);
 
-	for(int i = 0; i < size; i++) {
-		printf("%d, ", buffer[i]);
-	}
-	printf("\n");
-
 	if(state) {
 		wl->impl.key_press(data, buffer, size - 1, wl->impl.key_data);
 	}
@@ -64,11 +70,20 @@ static void wl_keyboard_key(void *data, struct wl_keyboard *keyboard, uint32_t s
 }
 
 static void wl_keyboard_mods(void *data, struct wl_keyboard *keyboard, uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked, uint32_t group) {
-	
+	UNUSED(data);
+	UNUSED(keyboard);
+	UNUSED(serial);
+	UNUSED(mods_locked);
+	UNUSED(mods_latched);
+	UNUSED(mods_depressed);
+	UNUSED(group);
 }
 
 static void wl_keyboard_repeat_info(void *data, struct wl_keyboard *keyboard, int32_t rate, int32_t delay) {
-
+	UNUSED(data);
+	UNUSED(keyboard);
+	UNUSED(rate);
+	UNUSED(delay);
 }
 
 static const struct wl_keyboard_listener wl_keyboard_listener = {
@@ -87,7 +102,7 @@ static const struct wl_keyboard_listener wl_keyboard_listener = {
 /*TODO: FUNCTIONS*/
 
 static const struct wl_pointer_listener wl_pointer_listener = {
-	
+	0	
 };
 
 /*
@@ -98,12 +113,14 @@ static const struct wl_pointer_listener wl_pointer_listener = {
 
 
 static const struct wl_touch_listener wl_touch_listener = {
-	
+	0	
 };
 
 
 void wl_seat_name(void *data, struct wl_seat *seat, const char *name) {
 	magma_log_info("Seat name: %s\n", name);	
+	UNUSED(seat);
+	UNUSED(data);
 }
 
 
@@ -119,10 +136,12 @@ void wl_seat_capabilities(void *data, struct wl_seat *seat, uint32_t capabilitie
 
 	if(capabilities & WL_SEAT_CAPABILITY_POINTER) {
 		magma_log_printf(MAGMA_INFO, "| WL_POINTER ");
+		UNUSED(wl_touch_listener);
 	}
 
 	if(capabilities & WL_SEAT_CAPABILITY_TOUCH) {
 		magma_log_printf(MAGMA_INFO, "| WL_TOUCH");
+		UNUSED(wl_pointer_listener);
 	}
 
 	magma_log_printf(MAGMA_INFO, "\n");

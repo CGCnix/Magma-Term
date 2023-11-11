@@ -273,11 +273,7 @@ bool magma_drm_check_master(int fd) {
 	return false;
 }
 
-int magma_drm_find_keyboard() {
-
-}
-
-magma_backend_t *magma_drm_backend_init() {
+magma_backend_t *magma_drm_backend_init(void) {
 	magma_drm_backend_t *drm;
 	char *drm_dev_path, *key_dev_path;
 
@@ -287,13 +283,13 @@ magma_backend_t *magma_drm_backend_init() {
 		goto err_drm_alloc;
 	}
 
-	drm_dev_path = getenv("MAGMA_DRM_DEV") ? : "/dev/dri/card0";
+	drm_dev_path = getenv("MAGMA_DRM_DEV") ? getenv("MAGMA_DRM_DEV") : "/dev/dri/card0";
 	
 	/* maybe try to find keyboard dynamically as event0 is just my keyboard
 	 * path this won't be the same on any two systems and could leave a user
 	 * in hard to escape situation 
 	 */
-	key_dev_path = getenv("MAGMA_KEY_DEV") ? : "/dev/input/event0";
+	key_dev_path = getenv("MAGMA_KEY_DEV") ? getenv("MAGMA_KEY_DEV") : "/dev/input/event0";
 
 	drm->fd = open(drm_dev_path, O_RDWR | O_CLOEXEC);
 	if (drm->fd < 0) {

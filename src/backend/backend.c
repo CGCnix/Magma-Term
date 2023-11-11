@@ -45,7 +45,7 @@ magma_backend_t *magma_backend_init_name(const char *name) {
 	return NULL;
 }
 
-magma_backend_t *magma_backend_init_auto() {
+magma_backend_t *magma_backend_init_auto(void) {
 	char *override;
 
 	#if defined(_MAGMA_NO_WL_) && defined(_MAGMA_NO_XCB_) && defined(_MAGMA_NO_DRM_)

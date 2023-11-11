@@ -26,6 +26,8 @@
  * complete overall to be honest
  */
 
+#define UNUSED(x) ((void)x)
+
 typedef struct magma_ctx {
 	magma_vt_t *vt;
 
@@ -36,7 +38,7 @@ typedef struct magma_ctx {
 	FT_Library library;
 	FT_Face face;
 
-	uint32_t maxascent, maxdescent;
+	int32_t maxascent, maxdescent;
 
 	uint32_t width, height, x, y;
 
@@ -52,7 +54,7 @@ int glyph_check_bit(const FT_GlyphSlot glyph, const int x, const int y)
     return (cValue & (128 >> (x & 7))) != 0;
 }
 
-void echo_char(magma_ctx_t *ctx, int ch, int x, int y, uint32_t width, unsigned int maxAscent, uint32_t *data2) {
+void echo_char(magma_ctx_t *ctx, int ch, int x, int y, uint32_t width, uint32_t *data2) {
 	FT_Bitmap *bitmap;
 
 	if(ch == '\r') {
@@ -70,8 +72,8 @@ void echo_char(magma_ctx_t *ctx, int ch, int x, int y, uint32_t width, unsigned 
 		FT_Bitmap_Embolden(ctx->library, bitmap, 1 << 6, 1 << 6);
 	}
 
-	for(int yp = 0; yp < bitmap->rows; yp++) {
-		for(int xp = 0; xp < bitmap->width; xp++) {
+	for(uint32_t yp = 0; yp < bitmap->rows; yp++) {
+		for(uint32_t xp = 0; xp < bitmap->width; xp++) {
 			if(glyph_check_bit(ctx->face->glyph, xp, yp)) {
 				
 				data2[(30 + (yp + y * 24) + (ctx->maxascent - ctx->face->glyph->bitmap_top)) * width + xp + (x * (ctx->face->glyph->advance.x >> 6)) + ctx->face->glyph->bitmap_left] = ctx->vt->lines[y][x].fg;
@@ -99,8 +101,8 @@ void draw_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *da
 
 	buf.buffer = calloc(4, width * height);
 	data2 = buf.buffer;
-	for (int y = 0; y < height; ++y) {
-        for (int x = 0; x < width; ++x) {
+	for (uint32_t y = 0; y < height; ++y) {
+        for (uint32_t x = 0; x < width; ++x) {
 			data2[y * width + x] = 0xa02a3628;
         }
     }
@@ -110,13 +112,14 @@ void draw_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *da
 			if(ctx->vt->lines[y][x].unicode == '\n' || (y == ctx->vt->buf_y && x == ctx->vt->buf_x)) {
 				break;
 			}
-			echo_char(ctx, ctx->vt->lines[y][x].unicode, x, y, width, ctx->maxascent, data2);
+			echo_char(ctx, ctx->vt->lines[y][x].unicode, x, y, width, data2);
 		}
 	}
 	magma_backend_put_buffer(backend, &buf);
 }
 
 void key_cb(magma_backend_t *backend, char *utf8, int length, void *data){
+	((void)backend);
 	magma_ctx_t *ctx = data;
 	magma_log_info("Got to Key callback %d\n", length);	
 	write(ctx->vt->master, utf8, length);
@@ -143,6 +146,7 @@ void fc_get_ascent_and_descent(magma_ctx_t *ctx) {
 
 
 void resize_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *data) {
+	UNUSED(backend);
 	magma_ctx_t *ctx = data;
 	struct winsize ws;
 	ws.ws_xpixel = width;
@@ -213,13 +217,15 @@ void font_init(magma_ctx_t *ctx, char *font) {
 }
 
 void on_close(magma_backend_t *backend, void *data) {
+	UNUSED(backend);
 	magma_ctx_t *ctx = data;
-
 
 	ctx->is_running = 0;
 }
 
 int main(int argc, char **argv) {
+	UNUSED(argc);
+	UNUSED(argv);
 	int slave;
 	magma_ctx_t ctx = { 0 };
 	struct pollfd pfd;
