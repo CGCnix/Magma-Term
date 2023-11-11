@@ -74,7 +74,7 @@ void echo_char(magma_ctx_t *ctx, int ch, int x, int y, uint32_t width, unsigned 
 		for(int xp = 0; xp < bitmap->width; xp++) {
 			if(glyph_check_bit(ctx->face->glyph, xp, yp)) {
 				
-				data2[(20 + (yp + y * 14) + (ctx->maxascent - ctx->face->glyph->bitmap_top)) * width + xp + (x * 8) + ctx->face->glyph->bitmap_left] = ctx->vt->lines[y][x].fg;
+				data2[(30 + (yp + y * 24) + (ctx->maxascent - ctx->face->glyph->bitmap_top)) * width + xp + (x * (ctx->face->glyph->advance.x >> 6)) + ctx->face->glyph->bitmap_left] = ctx->vt->lines[y][x].fg;
 			}
 		}
 	}
@@ -125,7 +125,7 @@ void key_cb(magma_backend_t *backend, char *utf8, int length, void *data){
 
 void fc_get_ascent_and_descent(magma_ctx_t *ctx) {
 	FT_GlyphSlot glyph;
-	for(int i = 32; i < UINT16_MAX; i++) {
+	for(int i = 32; i < 256; i++) {
 		FT_UInt glyphindex = FT_Get_Char_Index(ctx->face, i);
 		FT_Load_Glyph(ctx->face, glyphindex, FT_LOAD_DEFAULT);
 		FT_Render_Glyph(ctx->face->glyph, FT_RENDER_MODE_NORMAL);
@@ -147,25 +147,38 @@ void resize_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *
 	struct winsize ws;
 	ws.ws_xpixel = width;
 	ws.ws_ypixel = height;
-	ws.ws_col = width / 10;
-	ws.ws_row = height / 10;
+	ws.ws_col = width / 14;
+	ws.ws_row = height / 24;
+	ws.ws_row--;
 
 	ctx->vt->lines = realloc(ctx->vt->lines, sizeof(void*) * ws.ws_row);
 
 
-	for(int i = 0; i < ctx->vt->rows; i++) {
-		ctx->vt->lines[i] = realloc(ctx->vt->lines[i], ws.ws_col * sizeof(glyph_t));
-	}
+	if(ctx->vt->rows < ws.ws_row) {
+		/*We grew*/
+		for(int i = 0; i < ctx->vt->rows; i++) {
+			ctx->vt->lines[i] = realloc(ctx->vt->lines[i], ws.ws_col * sizeof(glyph_t));
+		}
 
-	for(int i = ctx->vt->rows; i < ws.ws_row; i++) {
-		ctx->vt->lines[i] = calloc(sizeof(glyph_t), ws.ws_col);
+		for(int i = ctx->vt->rows; i < ws.ws_row; i++) {
+			ctx->vt->lines[i] = calloc(sizeof(glyph_t), ws.ws_col);
+		}
+	} else {
+		/*we shrunk*/
+		for(int i = 0; i < ws.ws_row; i++) {
+			ctx->vt->lines[i] = realloc(ctx->vt->lines[i], sizeof(glyph_t) * ws.ws_col);
+		}
 	}
 
 	ctx->vt->rows = ws.ws_row;
 	ctx->vt->cols = ws.ws_col;
 	ctx->width = width;
 	ctx->height = height;
-
+	if(ctx->vt->buf_y > ws.ws_row - 2) {
+		ctx->vt->buf_y = ws.ws_row - 2;
+		ctx->vt->buf_x = 0;
+	}
+	
 	if(ioctl(ctx->vt->master, TIOCSWINSZ, &ws)) {
 		printf("Failed to update term size\n");
 	}
@@ -231,7 +244,7 @@ int main(int argc, char **argv) {
 
 	fc_get_ascent_and_descent(&ctx);
 
-	FT_Set_Pixel_Sizes(ctx.face, 14, 14);
+	FT_Set_Pixel_Sizes(ctx.face, 24, 24);
 	if(magma_fork_pty(ctx.vt->master, &slave) < 0) {
 		magma_log_info("Failed to fork\n");
 		return 1;
