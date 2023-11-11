@@ -45,13 +45,13 @@ void magma_log_set_level(enum magma_log_levels level) {
 }
 
 int magma_log(enum magma_log_levels level, const uint32_t line, 
-		const char *function, const char *file, const char *fmt, ...) {
+		const char *file, const char *fmt, ...) {
 	int len;
 	va_list args;
 
 	if(level < log_level) return 0;
 
-	printf("%s%s\x1b[0m \x1b[1;35m%s(%d):\x1b[0m \x1b[32m%s()\x1b[0m ", magma_log_level_color(level), magma_log_level_str(level), file, line, function);
+	printf("%s%s\x1b[0m \x1b[1;35m%s(%d):\x1b[0m \x1b[32m\x1b[0m ", magma_log_level_color(level), magma_log_level_str(level), file, line);
 
 	va_start(args, fmt);
 	len = vprintf(fmt, args);

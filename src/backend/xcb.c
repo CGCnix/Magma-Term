@@ -15,6 +15,7 @@
 #include <xkbcommon/xkbcommon-x11.h>
 #include <xkbcommon/xkbcommon-keysyms.h>
 
+#define UNUSED(x) ((void)x)
 
 typedef struct magma_xcb_backend {
 	magma_backend_t impl;
@@ -135,23 +136,28 @@ void magma_xcb_backend_key_release(magma_xcb_backend_t *xcb, xcb_key_release_eve
 
 
 void magma_xcb_backend_button_press(magma_xcb_backend_t *xcb, xcb_button_press_event_t *press) {
-
+	UNUSED(xcb);
+	UNUSED(press);
 }
 
 void magma_xcb_backend_button_release(magma_xcb_backend_t *xcb, xcb_button_release_event_t *release) {
-
+	UNUSED(xcb);
+	UNUSED(release);
 }
 
 void magma_xcb_backend_pointer_motion(magma_xcb_backend_t *xcb, xcb_motion_notify_event_t *motion) {
-
+	UNUSED(xcb);
+	UNUSED(motion);
 }
 
 void magma_xcb_backend_enter(magma_xcb_backend_t *xcb, xcb_enter_notify_event_t *enter) {
-
+	UNUSED(xcb);
+	UNUSED(enter);
 }
 
 void magma_xcb_backend_leave(magma_xcb_backend_t *xcb, xcb_leave_notify_event_t *leave) {
-
+	UNUSED(xcb);
+	UNUSED(leave);
 }
 
 void magma_xcb_backend_dispacth(magma_backend_t *backend) {
@@ -220,7 +226,7 @@ xcb_visualtype_t *magma_xcb_match_visual(uint32_t depth, const xcb_screen_t *scr
 	return NULL;
 }
 
-magma_backend_t *magma_xcb_backend_init() {
+magma_backend_t *magma_xcb_backend_init(void) {
 	magma_xcb_backend_t *xcb;
 	xcb_screen_iterator_t iter;
 	const xcb_setup_t *setup;
@@ -306,7 +312,7 @@ magma_backend_t *magma_xcb_backend_init() {
 
 	device_id = xkb_x11_get_core_keyboard_device_id(xcb->connection);
 	if(device_id < 0) {
-		printf("Device id error: %m\n");
+		printf("Device id error:\n");
 		return NULL;	
 	}
 

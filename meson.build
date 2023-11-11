@@ -1,6 +1,6 @@
 project('magma', 'c')
 
-add_project_arguments('-D_XOPEN_SOURCE=700', language: 'c')
+add_project_arguments('-D_XOPEN_SOURCE=700 -Wall -Werror -pedantic', language: 'c')
 
 deps = [ dependency('fontconfig'), dependency('freetype2'), dependency('xkbcommon'), dependency('xkbcommon-x11')]
 

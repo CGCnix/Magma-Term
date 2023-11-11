@@ -27,6 +27,7 @@
 #include <magma/backend/backend.h>
 #include <magma/logger/log.h>
 
+#define UNUSED(x) ((void)x)
 
 const struct wl_seat_listener wl_seat_listener = {
 	.name = wl_seat_name,
@@ -35,6 +36,7 @@ const struct wl_seat_listener wl_seat_listener = {
 
 void xdg_wm_base_ping(void *data, struct xdg_wm_base *xdg_wm_base, uint32_t serial) {
 	xdg_wm_base_pong(xdg_wm_base, serial);
+	UNUSED(data);
 }
 
 static const struct xdg_wm_base_listener xdg_wm_base_listener = {
@@ -61,7 +63,9 @@ void wl_registry_global(void *data, struct wl_registry *registry, uint32_t name,
 }
 
 void wl_registry_global_remove(void *data, struct wl_registry *registry, uint32_t name) {
-	
+	UNUSED(data);
+	UNUSED(registry);
+	UNUSED(name);
 }
 
 static const struct wl_registry_listener registry_listener = {
@@ -92,20 +96,28 @@ static void xdg_toplevel_close(void *data, struct xdg_toplevel *xdg_toplevel) {
 
 static void xdg_toplevel_wm_capabilities(void *data, struct xdg_toplevel *xdg_toplevel, struct wl_array *caps) {
 	magma_log_debug("xdg_toplevel_wm_caps\n");
+	UNUSED(data);
+	UNUSED(xdg_toplevel);
+	UNUSED(caps);
 }
 
 static void xdg_toplevel_configure(void *data, struct xdg_toplevel *xdg_toplevel, int32_t width, int32_t height, struct wl_array *states) {
 	magma_wl_backend_t *wl = data;
 
-	wl->height = height ? : 600;
-	wl->width = width ? : 600;
+	wl->height = height ? height : 600;
+	wl->width = width ? width : 600;
 	if(wl->impl.resize) {
 		wl->impl.resize(data, wl->height, wl->width, wl->impl.resize_data);
 	}
+	UNUSED(states);
+	UNUSED(xdg_toplevel);
 }
 
 static void xdg_toplevel_configure_bounds(void *data, struct xdg_toplevel *xdg_toplevel, int32_t width, int32_t height) {
-
+	UNUSED(data);
+	UNUSED(xdg_toplevel);
+	UNUSED(width);
+	UNUSED(height);
 }
 
 static const struct xdg_toplevel_listener xdg_toplevel_listener = {
@@ -148,6 +160,7 @@ static int allocate_shm_fd(size_t size) {
 
 void wl_buffer_release(void *data, struct wl_buffer *buffer) {
 	wl_buffer_destroy(buffer);
+	UNUSED(data);
 }
 
 static const struct wl_buffer_listener wl_buffer_listener = {
@@ -219,7 +232,7 @@ void magma_wl_backend_deinit(magma_backend_t *backend) {
 	
 }
 
-magma_backend_t *magma_wl_backend_init() {
+magma_backend_t *magma_wl_backend_init(void) {
 	magma_wl_backend_t *wl;
 
 	wl = calloc(1, sizeof(magma_wl_backend_t));

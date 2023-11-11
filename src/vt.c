@@ -137,7 +137,6 @@ void vt_read_input(magma_vt_t *magmavt) {
 	/*ESCAPE CODE*/
 	if(byte == 0x1b) {
 		magma_log_info("Escape MODE\n");
-		csi_escape_handle(magmavt->master, magmavt);
 		return;
 	}
 
@@ -160,5 +159,14 @@ void vt_read_input(magma_vt_t *magmavt) {
 		magmavt->buf_x = 0;
 	} else {
 		magmavt->buf_x++;
+	}
+
+	magma_log_debug("%d %d\n", magmavt->buf_y, magmavt->rows);
+	if(magmavt->buf_y >= magmavt->rows - 1) {
+		for(int i = 1; i < magmavt->rows; i++) {
+				memmove(magmavt->lines[i-1], magmavt->lines[i], magmavt->cols * sizeof(glyph_t));
+			magmavt->buf_x = 0;
+		}
+		magmavt->buf_y--;
 	}
 }

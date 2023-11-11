@@ -36,7 +36,7 @@ magma_backend_t *magma_backend_init_name(const char *name);
  *	@retval !NULL a pointer to the backend structure
  *	@return a pointer to the backend
  */
-magma_backend_t *magma_backend_init_auto();
+magma_backend_t *magma_backend_init_auto(void);
 
 
 void magma_backend_start(magma_backend_t *backend);
