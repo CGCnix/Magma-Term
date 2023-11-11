@@ -186,7 +186,6 @@ void font_init(magma_ctx_t *ctx, char *font) {
 	font_pattern = FcFontMatch(ctx->fcconfig, pattern, &result);
 	
 	if(FcPatternGetString(font_pattern, FC_FILE, 0, &fc_file) == FcResultMatch) {
-		
 		font_file = (char *)fc_file;
 	} else {
 		return;
@@ -220,7 +219,6 @@ int main(int argc, char **argv) {
 	ctx.vt->cols = 80;
 	ctx.vt->rows = 25;
 	ctx.vt->fg = 0xf8f8f2;	
-	__builtin_dump_struct(ctx.vt, &printf);
 
 	if(magma_get_pty(&ctx.vt->master, &slave) < 0) {
 		return -1;
