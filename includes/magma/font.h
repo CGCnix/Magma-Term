@@ -9,6 +9,8 @@
 
 typedef struct magma_font {
 	uint32_t height;
+	
+	uint32_t ascent, descent;
 
 	struct advance {
 		uint32_t x;

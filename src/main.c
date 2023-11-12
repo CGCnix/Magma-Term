@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -6,6 +7,7 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
+#include <time.h>
 #include <unistd.h>
 #include <fcntl.h>
 
@@ -53,30 +55,36 @@ int glyph_check_bit(const FT_GlyphSlot glyph, const int x, const int y)
     return (cValue & (128 >> (x & 7))) != 0;
 }
 
-void echo_char(magma_ctx_t *ctx, int ch, int x, int y, uint32_t width, uint32_t *data2) {
+void echo_char(magma_ctx_t *ctx, int ch, int x, int y, uint32_t *data2) {
 	FT_Bitmap *bitmap;
+	FT_GlyphSlot glyph;
+	FT_UInt glyphindex;
+	uint32_t yp, xp, xoff, ypos, xpos, yoff;
 
 	if(ch == '\r') {
 		return;
 	}
-	FT_UInt glyphindex = FT_Get_Char_Index(ctx->font->face, ch);
 
+	xoff = x * ctx->font->advance.x;
+	yoff = (y * ctx->font->height) + ctx->font->ascent;
+
+	glyphindex = FT_Get_Char_Index(ctx->font->face, ch);
 
 	FT_Load_Glyph(ctx->font->face, glyphindex, FT_LOAD_DEFAULT);
 	FT_Render_Glyph(ctx->font->face->glyph, FT_RENDER_MODE_MONO);
 	
 	bitmap = &ctx->font->face->glyph->bitmap;
-
+	glyph = ctx->font->face->glyph;
 	if(ctx->vt->lines[y][x].attributes == 1) {
 		FT_Bitmap_Embolden(ctx->font->ft_lib, bitmap, 1 << 6, 1 << 6);
 	}
 
-	for(uint32_t yp = 0; yp < bitmap->rows; yp++) {
-		for(uint32_t xp = 0; xp < bitmap->width; xp++) {
-			if(glyph_check_bit(ctx->font->face->glyph, xp, yp)) {
-				uint32_t xpos = x * ctx->font->advance.x;
-				uint32_t linspace = ctx->font->height;
-				data2[((yp + y * linspace) + (ctx->maxascent - ctx->font->face->glyph->bitmap_top)) * width + xp + (xpos + ctx->font->face->glyph->bitmap_left) ] = ctx->vt->lines[y][x].fg;
+	for(yp = 0; yp < bitmap->rows; yp++) {
+		for(xp = 0; xp < bitmap->width; xp++) {
+			if(glyph_check_bit(glyph, xp, yp)) {
+				ypos = yp + yoff - glyph->bitmap_top; 
+				xpos = xp + (xoff + glyph->bitmap_left);
+				data2[ypos * ctx->width + xpos] = ctx->vt->lines[y][x].fg;
 			}
 		}
 	}
@@ -86,7 +94,6 @@ void draw_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *da
 	if(width == 0) return;
 	magma_ctx_t *ctx = data;
 	uint32_t *data2;
-
 	width = ctx->width;
 	height = ctx->height;
 
@@ -107,14 +114,17 @@ void draw_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *da
         }
     }
 	
-	for(int y = 0; y < ctx->vt->buf_y + 1; y++) {
+	for(int y = 0; y <= ctx->vt->buf_y; y++) {
 		for(int x = 0; x < ctx->vt->cols; x++) {
 			if(ctx->vt->lines[y][x].unicode == '\n' || (y == ctx->vt->buf_y && x == ctx->vt->buf_x)) {
 				break;
 			}
-			echo_char(ctx, ctx->vt->lines[y][x].unicode, x, y, width, data2);
+			echo_char(ctx, ctx->vt->lines[y][x].unicode, x, y, data2);
 		}
 	}
+	
+	echo_char(ctx, '_', ctx->vt->buf_x, ctx->vt->buf_y, data2);
+
 	magma_backend_put_buffer(backend, &buf);
 }
 
@@ -125,25 +135,6 @@ void key_cb(magma_backend_t *backend, char *utf8, int length, void *data){
 	write(ctx->vt->master, utf8, length);
 
 }
-
-void fc_get_ascent_and_descent(magma_ctx_t *ctx) {
-	FT_GlyphSlot glyph;
-	for(int i = 32; i < UINT16_MAX; i++) {
-		FT_UInt glyphindex = FT_Get_Char_Index(ctx->font->face, i);
-		FT_Load_Glyph(ctx->font->face, glyphindex, FT_LOAD_DEFAULT);
-		FT_Render_Glyph(ctx->font->face->glyph, FT_RENDER_MODE_NORMAL);
-		glyph = ctx->font->face->glyph;
-
-		if(ctx->maxascent < glyph->bitmap_top) {
-			ctx->maxascent = glyph->bitmap_top;
-		}
-		if ((glyph->metrics.height >> 6) - glyph->bitmap_top > (int)ctx->maxdescent) {
-    		ctx->maxdescent = (glyph->metrics.height >> 6) - glyph->bitmap_top;
-		}
-	}
-
-}
-
 
 void resize_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *data) {
 	UNUSED(backend);
@@ -178,8 +169,8 @@ void resize_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *
 	ctx->vt->cols = ws.ws_col;
 	ctx->width = width;
 	ctx->height = height;
-	if(ctx->vt->buf_y > ws.ws_row - 2) {
-		ctx->vt->buf_y = ws.ws_row - 2;
+	if(ctx->vt->buf_y > ws.ws_row) {
+		ctx->vt->buf_y = ws.ws_row;
 		ctx->vt->buf_x = 0;
 	}
 	
@@ -222,13 +213,21 @@ int main(int argc, char **argv) {
 
 	FcInit();
 	ctx.font = magma_font_init("monospace");
-
 	FT_Set_Pixel_Sizes(ctx.font->face, 18, 18);
 	ctx.font->height = ctx.font->face->size->metrics.height >> 6;
-	ctx.font->advance.x = ctx.font->face->size->metrics.max_advance >> 6;
-
-	fc_get_ascent_and_descent(&ctx);
-
+	
+	/* Get the size of the M character to use as the advance width 
+	 * as it will improve readableblity in Non monospace fonts 
+	 * and NotoSanMono where the max advance is different
+	 * as some glyphs in that font have different widths and thus
+	 * advances based on this idea
+	 * https://codeberg.org/dnkl/foot/commit/bb948d03e199870da6b35ba6f88ea88be12cfe21
+	 */
+	FT_Load_Char(ctx.font->face, 'M', FT_LOAD_DEFAULT);
+	ctx.font->advance.x = ctx.font->face->glyph->advance.x >> 6;
+	ctx.font->ascent = ctx.font->face->size->metrics.ascender >> 6;
+	ctx.font->descent = ctx.font->face->size->metrics.descender >> 6;
+	
 	if(magma_fork_pty(ctx.vt->master, &slave) < 0) {
 		magma_log_info("Failed to fork\n");
 		return 1;
@@ -248,7 +247,7 @@ int main(int argc, char **argv) {
 	while(ctx.is_running) {
 		magma_backend_dispatch_events(ctx.backend);
 	
-		if(poll(&pfd, 1, 10)) {
+		while(poll(&pfd, 1, 10)) {
 			if(pfd.revents & POLLERR || pfd.revents & POLLHUP) {
 				printf("Child is process has closed\n");
 				ctx.is_running = 0;
