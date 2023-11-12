@@ -55,10 +55,11 @@ int glyph_check_bit(const FT_GlyphSlot glyph, const int x, const int y)
     return (cValue & (128 >> (x & 7))) != 0;
 }
 
-void echo_char(magma_ctx_t *ctx, int ch, int x, int y, uint32_t *data2) {
+void echo_char(magma_ctx_t *ctx, glyph_t g, int x, int y, uint32_t *data2) {
 	FT_Bitmap *bitmap;
 	FT_GlyphSlot glyph;
 	FT_UInt glyphindex;
+	utf32_t ch = g.unicode;
 	uint32_t yp, xp, xoff, ypos, xpos, yoff;
 
 	if(ch == '\r') {
@@ -84,7 +85,7 @@ void echo_char(magma_ctx_t *ctx, int ch, int x, int y, uint32_t *data2) {
 			if(glyph_check_bit(glyph, xp, yp)) {
 				ypos = yp + yoff - glyph->bitmap_top; 
 				xpos = xp + (xoff + glyph->bitmap_left);
-				data2[ypos * ctx->width + xpos] = ctx->vt->lines[y][x].fg;
+				data2[ypos * ctx->width + xpos] = g.fg;
 			}
 		}
 	}
@@ -119,11 +120,12 @@ void draw_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *da
 			if(ctx->vt->lines[y][x].unicode == '\n' || (y == ctx->vt->buf_y && x == ctx->vt->buf_x)) {
 				break;
 			}
-			echo_char(ctx, ctx->vt->lines[y][x].unicode, x, y, data2);
+			echo_char(ctx, ctx->vt->lines[y][x], x, y, data2);
 		}
 	}
-	
-	echo_char(ctx, '_', ctx->vt->buf_x, ctx->vt->buf_y, data2);
+
+	glyph_t cursor = { .unicode = '_', .fg = 0xf8f8f2, .bg = 0, .attributes = 0};
+	echo_char(ctx, cursor, ctx->vt->buf_x, ctx->vt->buf_y, data2);
 
 	magma_backend_put_buffer(backend, &buf);
 }
