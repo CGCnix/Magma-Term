@@ -171,8 +171,8 @@ void resize_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *
 	ctx->vt->cols = ws.ws_col;
 	ctx->width = width;
 	ctx->height = height;
-	if(ctx->vt->buf_y > ws.ws_row) {
-		ctx->vt->buf_y = ws.ws_row;
+	if(ctx->vt->buf_y >= ws.ws_row) {
+		ctx->vt->buf_y = ws.ws_row - 1;
 		ctx->vt->buf_x = 0;
 	}
 	
