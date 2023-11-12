@@ -95,7 +95,7 @@ static void xdg_toplevel_close(void *data, struct xdg_toplevel *xdg_toplevel) {
 }
 
 static void xdg_toplevel_wm_capabilities(void *data, struct xdg_toplevel *xdg_toplevel, struct wl_array *caps) {
-	magma_log_debug("xdg_toplevel_wm_caps\n");
+	magma_log_info("xdg_toplevel_wm_caps\n");
 	UNUSED(data);
 	UNUSED(xdg_toplevel);
 	UNUSED(caps);

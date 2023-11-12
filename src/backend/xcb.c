@@ -115,7 +115,6 @@ void magma_xcb_backend_key_press(magma_xcb_backend_t *xcb, xcb_key_press_event_t
 	buffer = calloc(1, length);
 
 	xkb_state_key_get_utf8(xcb->xkbstate, press->detail, buffer, length);
-	printf("Calling Key callback\n");
 	if(xcb->impl.key_press) {	
 		xcb->impl.key_press((void*)xcb, buffer, length - 1, xcb->impl.key_data);
 	}

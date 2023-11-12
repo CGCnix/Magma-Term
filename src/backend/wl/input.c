@@ -19,7 +19,7 @@ static void wl_keyboard_keymap(void *data, struct wl_keyboard *keyboard, uint32_
 	UNUSED(keyboard);
 	magma_wl_backend_t *wl;
 	char *keymap_str;
-	magma_log_debug("Kemap event: %d %d %d\n", keymap_id, keymap_fd, size);
+	magma_log_info("Kemap event: %d %d %d\n", keymap_id, keymap_fd, size);
 
 	wl = data;
 
@@ -50,7 +50,7 @@ static void wl_keyboard_key(void *data, struct wl_keyboard *keyboard, uint32_t s
 	magma_wl_backend_t *wl;
 	char *buffer;
 	size_t size;
-	magma_log_debug("Key Event: %d(%d)\n", key, state);
+	magma_log_info("Key Event: %d(%d)\n", key, state);
 	UNUSED(time);
 	UNUSED(serial);
 	UNUSED(keyboard);

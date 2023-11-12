@@ -160,9 +160,8 @@ void vt_read_input(magma_vt_t *magmavt) {
 	} else {
 		magmavt->buf_x++;
 	}
-
-	magma_log_debug("%d %d\n", magmavt->buf_y, magmavt->rows);
-	if(magmavt->buf_y >= magmavt->rows - 1) {
+	
+	if(magmavt->buf_y >= magmavt->rows) {
 		for(int i = 1; i < magmavt->rows; i++) {
 				memmove(magmavt->lines[i-1], magmavt->lines[i], magmavt->cols * sizeof(glyph_t));
 			magmavt->buf_x = 0;
