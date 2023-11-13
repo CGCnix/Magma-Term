@@ -351,6 +351,7 @@ int main(int argc, char **argv) {
 			if(pfd.revents & POLLERR || pfd.revents & POLLHUP) {
 				printf("Child is process has closed\n");
 				ctx.is_running = 0;
+				break;
 			}
 
 			vt_read_input(ctx.vt);
