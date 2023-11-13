@@ -194,19 +194,13 @@ void magma_wl_backend_put_buffer(magma_backend_t *backend, magma_buf_t *buffer) 
 
 void magma_wl_backend_start(magma_backend_t *backend) {
 	magma_wl_backend_t *wl = (void*)backend;
-	
+
 	wl_surface_commit(wl->surface);
 	wl_display_flush(wl->display);
 }
 
 void magma_wl_backend_deinit(magma_backend_t *backend) {
 	magma_wl_backend_t *wl = (void*)backend;
-
-	xkb_state_unref(wl->xkb_state);
-
-	xkb_keymap_unref(wl->xkb_keymap);
-
-	xkb_context_unref(wl->xkb_context);
 
 	xdg_toplevel_destroy(wl->xdg_toplevel);
 	
@@ -254,12 +248,12 @@ magma_backend_t *magma_wl_backend_init(void) {
 	wl->xdg_toplevel = xdg_surface_get_toplevel(wl->xdg_surface);
 	xdg_toplevel_add_listener(wl->xdg_toplevel, &xdg_toplevel_listener, wl);
 
-	wl->xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
 	wl->impl.start = magma_wl_backend_start;
 	wl->impl.dispatch_events = magma_wl_backend_dispatch;
 	wl->impl.put_buffer = magma_wl_backend_put_buffer;
 	wl->impl.deinit = magma_wl_backend_deinit;
-
+	wl->impl.get_state = magma_wl_backend_get_xkbstate;
+	wl->impl.get_kmap = magma_wl_backend_get_xkbmap;
 
 	return (void*)wl;
 }

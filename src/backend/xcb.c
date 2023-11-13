@@ -27,20 +27,10 @@ typedef struct magma_xcb_backend {
 	xcb_visualid_t visual;
 	xcb_colormap_t colormap;
 	uint8_t depth;
-
-	struct xkb_context *xkbctx;
-	struct xkb_keymap *xkbmap;
-	struct xkb_state *xkbstate;
 } magma_xcb_backend_t;
 
 void magma_xcb_backend_deinit(magma_backend_t *backend) {
 	magma_xcb_backend_t *xcb = (void *)backend;
-
-	xkb_state_unref(xcb->xkbstate);
-
-	xkb_keymap_unref(xcb->xkbmap);
-
-	xkb_context_unref(xcb->xkbctx);
 
 	xcb_destroy_window(xcb->connection, xcb->window);
 
@@ -52,10 +42,44 @@ void magma_xcb_backend_deinit(magma_backend_t *backend) {
 void magma_xcb_backend_start(magma_backend_t *backend) {
 	magma_xcb_backend_t *xcb = (void *)backend;
 
+	if(xcb->impl.keymap) {
+		xcb->impl.keymap(backend, xcb->impl.keymap_data);
+	}
 	xcb_map_window(xcb->connection, xcb->window);
 
 	xcb_flush(xcb->connection);
 }
+
+struct xkb_keymap *magma_xcb_backend_get_keymap(magma_backend_t *backend, struct xkb_context *context) {
+	int device_id;
+	magma_xcb_backend_t *xcb = (void*)backend;
+
+	xkb_x11_setup_xkb_extension(xcb->connection, 1, 0, XKB_X11_SETUP_XKB_EXTENSION_NO_FLAGS,
+				NULL, NULL, NULL, NULL);	
+
+	device_id = xkb_x11_get_core_keyboard_device_id(xcb->connection);
+	if(device_id < 0) {
+		printf("Device id error:\n");
+		return NULL;	
+	}
+
+	return xkb_x11_keymap_new_from_device(context, xcb->connection,
+			device_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
+}
+
+struct xkb_state *magma_xcb_backend_get_xkbstate(magma_backend_t *backend, struct xkb_keymap *keymap) {
+	int device_id;
+	magma_xcb_backend_t *xcb = (void*)backend;
+	
+	device_id = xkb_x11_get_core_keyboard_device_id(xcb->connection);
+	if(device_id < 0) {
+		printf("Device id error:\n");
+		return NULL;	
+	}
+
+	return xkb_x11_state_new_from_device(keymap, xcb->connection, device_id);
+}
+
 
 void magma_xcb_backend_put_buffer(magma_backend_t *backend, magma_buf_t *buffer) {
 	magma_xcb_backend_t *xcb = (void *)backend;
@@ -84,52 +108,16 @@ void magma_xcb_backend_configure(magma_xcb_backend_t *xcb, xcb_configure_notify_
 	}
 }
 
-void magma_xcb_xkb_update_mods(struct xkb_state *state, int pressed, xkb_mod_mask_t new_depressed) {
-	xkb_mod_mask_t depressed = xkb_state_serialize_mods(state, XKB_STATE_DEPRESSED);
-
-	if(pressed) {
-		depressed |= new_depressed;
-	} else {
-		depressed &= ~new_depressed;
-	}
-
-	xkb_state_update_mask(state, depressed, 
-			0, 0, 0, 0, 0);
-}
-
 void magma_xcb_backend_key_press(magma_xcb_backend_t *xcb, xcb_key_press_event_t *press) {
-	char *buffer;
-	int length;
-	magma_log_info("Got Keypress %d\n", press->detail);
-	if(press->detail == 50) {
-		magma_xcb_xkb_update_mods(xcb->xkbstate, 1, XCB_MOD_MASK_SHIFT);
-		return;
-	}
-	if(press->detail == 108) {
-		magma_xcb_xkb_update_mods(xcb->xkbstate, 1, XCB_MOD_MASK_5);
-		return;
-	}
-
-	length = xkb_state_key_get_utf8(xcb->xkbstate, press->detail, NULL, 0) + 1;
-	
-	buffer = calloc(1, length);
-
-	xkb_state_key_get_utf8(xcb->xkbstate, press->detail, buffer, length);
 	if(xcb->impl.key_press) {	
-		xcb->impl.key_press((void*)xcb, buffer, length - 1, xcb->impl.key_data);
+		xcb->impl.key_press((void*)xcb, press->detail, MAGMA_KEY_PRESS, xcb->impl.key_data);
 	}
-
 }
 
 void magma_xcb_backend_key_release(magma_xcb_backend_t *xcb, xcb_key_release_event_t *release) {
-	if(release->detail == 50) {
-		magma_xcb_xkb_update_mods(xcb->xkbstate, 0, XCB_MOD_MASK_SHIFT);
-	}
-	if(release->detail == 108) {
-		magma_xcb_xkb_update_mods(xcb->xkbstate, 0, XCB_MOD_MASK_5);
-		return;
-	}
-
+	if(xcb->impl.key_press) {	
+		xcb->impl.key_press((void*)xcb, release->detail, MAGMA_KEY_RELEASE, xcb->impl.key_data);
+	}	
 
 }
 
@@ -304,22 +292,8 @@ magma_backend_t *magma_xcb_backend_init(void) {
 	magma_log_info("	height: %d\n", xcb->screen->height_in_pixels);
 
 	/*KEYBOARD*/
-	int device_id;
-	xcb->xkbctx = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-	xkb_x11_setup_xkb_extension(xcb->connection, 1, 0, XKB_X11_SETUP_XKB_EXTENSION_NO_FLAGS,
-				NULL, NULL, NULL, NULL);	
-
-	device_id = xkb_x11_get_core_keyboard_device_id(xcb->connection);
-	if(device_id < 0) {
-		printf("Device id error:\n");
-		return NULL;	
-	}
-
-	xcb->xkbmap = xkb_x11_keymap_new_from_device(xcb->xkbctx, xcb->connection,
-			device_id, XKB_KEYMAP_COMPILE_NO_FLAGS);
-
-	xcb->xkbstate = xkb_x11_state_new_from_device(xcb->xkbmap, xcb->connection, device_id);
-
+	xcb->impl.get_kmap = magma_xcb_backend_get_keymap;
+	xcb->impl.get_state = magma_xcb_backend_get_xkbstate;
 
 	xcb->impl.start = magma_xcb_backend_start;
 	xcb->impl.deinit = magma_xcb_backend_deinit;

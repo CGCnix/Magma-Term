@@ -1,3 +1,4 @@
+#include <linux/input-event-codes.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -7,6 +8,8 @@
 #include <string.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
+#include <sys/mman.h>
+
 #include <time.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -24,6 +27,9 @@
 
 #include <magma/vt.h>
 #include <magma/font.h>
+
+#include <xkbcommon/xkbcommon.h>
+
 /* TODO: This entire file needs a 
  * redo and the structures need 
  * complete overall to be honest
@@ -35,13 +41,13 @@ typedef struct magma_ctx {
 	magma_vt_t *vt;
 
 	magma_backend_t *backend;
-
-
 	magma_font_t *font;
 	
-	int32_t maxascent, maxdescent;
-
 	uint32_t width, height, x, y;
+
+	struct xkb_context *context;
+	struct xkb_keymap *keymap;
+	struct xkb_state *state;
 
 	bool is_running;
 } magma_ctx_t;
@@ -116,11 +122,16 @@ void draw_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *da
     }
 	
 	for(int y = 0; y <= ctx->vt->buf_y; y++) {
-		for(int x = 0; x < ctx->vt->cols; x++) {
+		for(int x = 0; x < ctx->vt->cols; ) {
 			if(ctx->vt->lines[y][x].unicode == '\n' || (y == ctx->vt->buf_y && x == ctx->vt->buf_x)) {
 				break;
 			}
+			if(ctx->vt->lines[y][x].unicode == 0x09) {
+				x = ((x) | (8 - 1)) + 1;
+				continue;
+			}
 			echo_char(ctx, ctx->vt->lines[y][x], x, y, data2);
+			x++;
 		}
 	}
 
@@ -130,12 +141,96 @@ void draw_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *da
 	magma_backend_put_buffer(backend, &buf);
 }
 
-void key_cb(magma_backend_t *backend, char *utf8, int length, void *data){
-	((void)backend);
+void keymap_cb(magma_backend_t *backend, void *data) {
 	magma_ctx_t *ctx = data;
-	magma_log_info("Got to Key callback %d\n", length);	
-	write(ctx->vt->master, utf8, length);
+	magma_log_debug("Got to keymap callback\n");	
+	ctx->keymap = magma_backend_get_xkbmap(backend, ctx->context);
+	ctx->state = magma_backend_get_xkbstate(backend, ctx->keymap);
+}
 
+static void magma_xkb_update_modifers(struct xkb_state *state, int pressed, xkb_mod_mask_t new_locked, xkb_mod_mask_t new_depressed, xkb_mod_mask_t new_latched) {
+	xkb_mod_mask_t depressed, latched, locked;
+
+	depressed = xkb_state_serialize_mods(state, XKB_STATE_MODS_DEPRESSED);
+	locked = xkb_state_serialize_mods(state, XKB_STATE_MODS_LOCKED);
+	latched = xkb_state_serialize_mods(state, XKB_STATE_MODS_LATCHED);
+
+
+	if(pressed) {
+		depressed |= new_depressed;
+		latched |= new_latched;
+		locked ^= new_locked;
+	} else {
+		depressed &= ~new_depressed;
+		latched &= ~new_depressed;
+	}
+
+	xkb_state_update_mask(state, depressed, latched, locked, 0, 0, 0);
+}
+
+void xkb_modifer_key(struct xkb_state *state, xkb_keysym_t keysym, int action) {
+	switch(keysym) {
+		case XKB_KEY_Shift_R:
+		case XKB_KEY_Shift_L:
+			magma_xkb_update_modifers(state, action, 0, 1, 0);
+			break;
+		case XKB_KEY_Caps_Lock:
+			magma_xkb_update_modifers(state, action, 2, 0, 0);
+			break;
+		case XKB_KEY_Control_L:
+		case XKB_KEY_Control_R: 
+			magma_xkb_update_modifers(state, action, 0, 4, 0);
+			break;
+		case XKB_KEY_Alt_L: 
+			magma_xkb_update_modifers(state, action, 0, 8, 0);
+			break;
+		case XKB_KEY_Num_Lock:
+			magma_xkb_update_modifers(state, action, 16, 0, 0);
+			break;
+		case XKB_KEY_Super_L:
+			magma_xkb_update_modifers(state, action, 0, 64, 0);
+			break;
+
+		case XKB_KEY_ISO_Level3_Shift:
+			magma_xkb_update_modifers(state, action, 0, 128, 0);
+			break;
+		default:
+			magma_log_debug("Unknown Modifer key: %x\n", keysym);
+			break;
+	}
+}
+
+void magma_key_press(magma_ctx_t *ctx, int key, xkb_keysym_t keysym) {
+	int len;
+	char utf8_buf[5];
+
+	if(keysym == XKB_KEY_BackSpace) {
+		write(ctx->vt->master, "\177", 1);
+		return;
+	}
+
+	len = xkb_state_key_get_utf8(ctx->state, key, utf8_buf, 5);
+	if(len) {
+		write(ctx->vt->master, utf8_buf, len);
+	}
+}
+
+void key_cb(magma_backend_t *backend, int key, int action, void *data){
+	magma_ctx_t *ctx = data;
+	xkb_keysym_t keysym;
+	
+	keysym = xkb_state_key_get_one_sym(ctx->state, key);
+
+	if((keysym >= 0xffe1 && keysym <= 0xffee) || keysym == 0xfe03) {
+		xkb_modifer_key(ctx->state, keysym, action);
+		return;
+	}
+
+	if(action) {
+		magma_key_press(ctx, key, keysym);
+	}
+
+	UNUSED(backend);
 }
 
 void resize_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *data) {
@@ -237,11 +332,13 @@ int main(int argc, char **argv) {
 
 	ctx.backend = magma_backend_init_auto();
 
+	ctx.context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
+
 	magma_backend_set_on_resize(ctx.backend, resize_cb, &ctx);
 	magma_backend_set_on_draw(ctx.backend, draw_cb, &ctx);
 	magma_backend_set_on_key(ctx.backend, key_cb, &ctx);
 	magma_backend_set_on_close(ctx.backend, on_close, &ctx);
-
+	magma_backend_set_on_keymap(ctx.backend, keymap_cb, &ctx);
 	magma_backend_start(ctx.backend);
 
 	pfd.fd = ctx.vt->master;
