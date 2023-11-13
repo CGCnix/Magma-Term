@@ -259,6 +259,7 @@ void resize_cb(magma_backend_t *backend, uint32_t height, uint32_t width, void *
 		/*we shrunk*/
 		for(int i = 0; i < ws.ws_row; i++) {
 			ctx->vt->lines[i] = realloc(ctx->vt->lines[i], sizeof(glyph_t) * ws.ws_col);
+			ctx->vt->lines[i][ws.ws_col - 1].unicode = '\n';
 		}
 	}
 
