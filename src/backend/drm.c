@@ -134,7 +134,10 @@ void magma_drm_backend_start(magma_backend_t *backend) {
 		drm->impl.keymap(backend, drm->impl.keymap_data);
 	}
 
-	drmModeSetCrtc(drm->fd, drm->crtc->crtc_id, drm->fb->fb_id, 0, 0, &drm->connector->connector_id, 1, &drm->connector->modes[0]);
+	if(drmModeSetCrtc(drm->fd, drm->crtc->crtc_id, drm->fb->fb_id, 0, 0, &drm->connector->connector_id, 1, &drm->connector->modes[0])) {
+		magma_log_fatal("Failed to set CRTC\n %d %d %d\n %d %d %d %d\n%m\n", drm->fd, drm->crtc->crtc_id, drm->fb->fb_id, 0, 0, drm->connector->connector_id, 1);
+		exit(1);
+	}
 }
 
 void magma_drm_backend_deinit(magma_backend_t *backend) {
@@ -253,6 +256,7 @@ bool magma_drm_check_master(int fd) {
 magma_backend_t *magma_drm_backend_init(void) {
 	magma_drm_backend_t *drm;
 	char *drm_dev_path, *key_dev_path;
+	
 
 	drm = calloc(1, sizeof(magma_drm_backend_t));
 	if(!drm) {
@@ -274,6 +278,7 @@ magma_backend_t *magma_drm_backend_init(void) {
 		goto err_open_drm;
 	}
 
+	magma_log_warn("%d %d\n", drmIsKMS(drm->fd), drmIsMaster(drm->fd));
 	if(!magma_drm_check_master(drm->fd)) {
 		goto err_not_master;
 	}
@@ -289,6 +294,8 @@ magma_backend_t *magma_drm_backend_init(void) {
 		magma_log_error("Failed to get drm resources %m\n");
 		goto err_get_res;
 	}
+
+	__builtin_dump_struct(drmModeGetResources(drm->fd), &printf);
 
 	drm->connector = magma_drm_backend_find_first_connector(drm->fd, drm->res->connectors, drm->res->count_connectors);
 	if(!drm->connector || !drm->connector->encoder_id) {
@@ -308,11 +315,14 @@ magma_backend_t *magma_drm_backend_init(void) {
 		goto err_get_crtc;
 	}
 
-	drm->fb = magma_drm_backend_create_fb(drm->fd, 1600, 900, 32, 24);
+	drm->fb = magma_drm_backend_create_fb(drm->fd, 0, 0, 32, 24);
 	if(!drm->fb) {
 		magma_log_error("Failed to allocate FB: %p %m\n");
 		goto err_create_fb;
 	}
+
+	magma_log_fatal("This DRM backend is a mess we refuse to start it without you taking some knowledge that you are starting messy code");
+	exit(1);
 
 	drm->impl.start = magma_drm_backend_start;
 	drm->impl.dispatch_events = magma_drm_backend_dispatch;
