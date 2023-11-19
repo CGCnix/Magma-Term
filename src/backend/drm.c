@@ -295,8 +295,6 @@ magma_backend_t *magma_drm_backend_init(void) {
 		goto err_get_res;
 	}
 
-	__builtin_dump_struct(drmModeGetResources(drm->fd), &printf);
-
 	drm->connector = magma_drm_backend_find_first_connector(drm->fd, drm->res->connectors, drm->res->count_connectors);
 	if(!drm->connector || !drm->connector->encoder_id) {
 		magma_log_error("Failed to get connector with valid encoder %p %m\n", drm->connector);

@@ -2,9 +2,14 @@ project('magma', 'c')
 
 add_project_arguments('-D_XOPEN_SOURCE=700 -Wall -Werror -pedantic', language: 'c')
 
-deps = [ dependency('fontconfig'), dependency('freetype2'), dependency('xkbcommon'), dependency('xkbcommon-x11')]
+deps = [ dependency('fontconfig'), dependency('freetype2'), dependency('xkbcommon'), dependency('xkbcommon-x11'), dependency('vulkan')]
 
-src_files = [ 'src/main.c', 'src/font.c', 'src/vt.c', 'src/logger/log.c', 'src/backend/backend.c']
+src_files = [ 'src/main.c', 'src/font.c', 'src/vt.c', 'src/logger/log.c', 'src/backend/backend.c', 'src/renderer/vk.c']
+
+if get_option('buildtype').startswith('debug')
+  add_project_arguments('-DMAGMA_VK_DEBUG', language: 'c')
+
+endif
 
 if get_option('disable-xcb')
   message('libxcb disabled you will be unable to run this build on X')

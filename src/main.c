@@ -24,7 +24,7 @@
 
 #include <magma/logger/log.h>
 #include <magma/backend/backend.h>
-
+#include <magma/renderer/vk.h>
 #include <magma/vt.h>
 #include <magma/font.h>
 
@@ -41,6 +41,7 @@ typedef struct magma_ctx {
 	magma_vt_t *vt;
 
 	magma_backend_t *backend;
+	magma_vk_renderer_t *renderer;
 	magma_font_t *font;
 	
 	uint32_t width, height, x, y;
@@ -332,6 +333,7 @@ int main(int argc, char **argv) {
 	}
 
 	ctx.backend = magma_backend_init_auto();
+	ctx.renderer = magma_vk_renderer_init(ctx.backend);
 
 	ctx.context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
 
