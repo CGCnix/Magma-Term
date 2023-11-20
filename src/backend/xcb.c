@@ -15,6 +15,11 @@
 #include <xkbcommon/xkbcommon-x11.h>
 #include <xkbcommon/xkbcommon-keysyms.h>
 
+#define VK_USE_PLATFORM_XCB_KHR
+#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_core.h>
+#include <vulkan/vulkan_xcb.h>
+
 #define UNUSED(x) ((void)x)
 
 typedef struct magma_xcb_backend {
@@ -28,6 +33,32 @@ typedef struct magma_xcb_backend {
 	xcb_colormap_t colormap;
 	uint8_t depth;
 } magma_xcb_backend_t;
+
+/*VULKAN STUFF*/
+void magma_xcb_backend_get_vk_exts(magma_backend_t *backend, char ***extensions,
+		uint32_t *size) {
+	static char *xcb_extensions[] = {
+		VK_KHR_SURFACE_EXTENSION_NAME,
+		VK_KHR_XCB_SURFACE_EXTENSION_NAME,
+	};
+
+	*extensions = xcb_extensions;
+	*size = sizeof(xcb_extensions) / sizeof(xcb_extensions[0]);
+
+	return;
+}
+
+VkResult magma_xcb_backend_get_vk_surface(magma_backend_t *backend, VkInstance instance,
+		VkSurfaceKHR *surface) {
+	VkXcbSurfaceCreateInfoKHR create_info = { 0 };
+	magma_xcb_backend_t *xcb = (void *)backend;
+
+	create_info.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
+	create_info.window = xcb->window;
+	create_info.connection = xcb->connection;
+
+	return vkCreateXcbSurfaceKHR(instance, &create_info, NULL, surface);
+}
 
 void magma_xcb_backend_deinit(magma_backend_t *backend) {
 	magma_xcb_backend_t *xcb = (void *)backend;
@@ -49,6 +80,8 @@ void magma_xcb_backend_start(magma_backend_t *backend) {
 
 	xcb_flush(xcb->connection);
 }
+
+
 
 struct xkb_keymap *magma_xcb_backend_get_keymap(magma_backend_t *backend, struct xkb_context *context) {
 	int device_id;
@@ -298,6 +331,11 @@ magma_backend_t *magma_xcb_backend_init(void) {
 	xcb->impl.start = magma_xcb_backend_start;
 	xcb->impl.deinit = magma_xcb_backend_deinit;
 	xcb->impl.dispatch_events = magma_xcb_backend_dispacth;
+	
+
 	xcb->impl.put_buffer = magma_xcb_backend_put_buffer;
+	xcb->impl.magma_backend_get_vk_exts = magma_xcb_backend_get_vk_exts;
+	xcb->impl.magma_backend_get_vk_surface = magma_xcb_backend_get_vk_surface;	
+
 	return (void*)xcb;
 }

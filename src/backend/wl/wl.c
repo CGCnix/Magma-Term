@@ -27,7 +27,40 @@
 #include <magma/backend/backend.h>
 #include <magma/logger/log.h>
 
+#define VK_USE_PLATFORM_WAYLAND_KHR
+#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_wayland.h>
+
 #define UNUSED(x) ((void)x)
+
+
+/*VULKAN STUFF*/
+void magma_wl_backend_get_vk_exts(magma_backend_t *backend, char ***extensions,
+		uint32_t *size) {
+	static char *wl_extensions[] = {
+		VK_KHR_SURFACE_EXTENSION_NAME,
+		VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME,
+	};
+
+	*extensions = wl_extensions;
+	*size = sizeof(wl_extensions) / sizeof(wl_extensions[0]);
+
+	return;
+}
+
+VkResult magma_wl_backend_get_vk_surface(magma_backend_t *backend, VkInstance instance,
+		VkSurfaceKHR *surface) {
+	VkWaylandSurfaceCreateInfoKHR create_info = { 0 };
+	magma_wl_backend_t *wl = (void *)backend;
+
+	create_info.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR;
+	create_info.display = wl->display;
+	create_info.surface = wl->surface;
+
+	return vkCreateWaylandSurfaceKHR(instance, &create_info, NULL, surface);
+}
+
+
 
 const struct wl_seat_listener wl_seat_listener = {
 	.name = wl_seat_name,
@@ -252,8 +285,11 @@ magma_backend_t *magma_wl_backend_init(void) {
 	wl->impl.dispatch_events = magma_wl_backend_dispatch;
 	wl->impl.put_buffer = magma_wl_backend_put_buffer;
 	wl->impl.deinit = magma_wl_backend_deinit;
+	
 	wl->impl.get_state = magma_wl_backend_get_xkbstate;
 	wl->impl.get_kmap = magma_wl_backend_get_xkbmap;
+	wl->impl.magma_backend_get_vk_surface = magma_wl_backend_get_vk_surface;
+	wl->impl.magma_backend_get_vk_exts = magma_wl_backend_get_vk_exts;
 
 	return (void*)wl;
 }

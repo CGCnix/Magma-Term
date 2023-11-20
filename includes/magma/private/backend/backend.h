@@ -4,6 +4,8 @@
 #include <magma/backend/backend.h>
 #include <xkbcommon/xkbcommon.h>
 
+#include <vulkan/vulkan.h>
+
 struct magma_backend {
 	void (*start)(magma_backend_t *backend);
 	void (*deinit)(magma_backend_t *backend);
@@ -24,6 +26,8 @@ struct magma_backend {
 	void (*put_buffer)(magma_backend_t *backend, magma_buf_t *buffer);
 	struct xkb_keymap *(*get_kmap)(magma_backend_t *backend, struct xkb_context *context);
 	struct xkb_state *(*get_state)(magma_backend_t *backend, struct xkb_keymap *keymap);
+	void (*magma_backend_get_vk_exts)(magma_backend_t *backend, char ***ext_names, uint32_t *size);
+	VkResult (*magma_backend_get_vk_surface)(magma_backend_t *backend, VkInstance instance, VkSurfaceKHR *surface);
 
 	void *keymap_data;
 	void *draw_data;

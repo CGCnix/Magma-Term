@@ -4,6 +4,8 @@
 
 #include <xkbcommon/xkbcommon.h>
 
+#include <vulkan/vulkan.h>
+
 typedef struct magma_backend magma_backend_t;
 
 /** 
@@ -47,6 +49,8 @@ magma_backend_t *magma_backend_init_auto(void);
 void magma_backend_start(magma_backend_t *backend);
 void magma_backend_deinit(magma_backend_t *backend);
 void magma_backend_dispatch_events(magma_backend_t *backend);
+
+/*Set callback functions*/
 void magma_backend_set_on_keymap(magma_backend_t *backend, PFN_MAGMAKEYMAPCB keymap, void *data);
 void magma_backend_set_on_draw(magma_backend_t *backend, PFN_MAGMADRAWCB draw, void *data);
 void magma_backend_set_on_resize(magma_backend_t *backend, PFN_MAGMARESIZCB resize, void *data);
@@ -57,6 +61,10 @@ void magma_backend_set_on_enter(magma_backend_t *backend, void (*enter)(magma_ba
 void magma_backend_set_on_cursor(magma_backend_t *backend, void (*cursor_motion)(magma_backend_t *backends), void *data);
 
 
+/*call into backends*/
 struct xkb_keymap *magma_backend_get_xkbmap(magma_backend_t *backend, struct xkb_context *context);
 struct xkb_state *magma_backend_get_xkbstate(magma_backend_t *backend, struct xkb_keymap *keymap);
 void magma_backend_put_buffer(magma_backend_t *backend, magma_buf_t *buffer);
+
+void magma_backend_get_vk_exts(magma_backend_t *backend, char ***extensions, uint32_t *size);
+VkResult magma_backend_get_vk_surface(magma_backend_t *backend, VkInstance instance, VkSurfaceKHR *surface);
