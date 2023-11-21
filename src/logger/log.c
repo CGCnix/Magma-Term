@@ -8,6 +8,8 @@ static enum magma_log_levels log_level;
 
 static const char *magma_log_level_str(enum magma_log_levels level) {
 	switch (level) {
+		case MAGMA_MEMINFO:
+			return "MEMINFO";
 		case MAGMA_INFO:
 			return "INFO";
 		case MAGMA_WARN:
@@ -25,6 +27,8 @@ static const char *magma_log_level_str(enum magma_log_levels level) {
 
 static const char *magma_log_level_color(enum magma_log_levels level) {
 	switch (level) {
+		case MAGMA_MEMINFO:
+			return "\x1b[1;35m";
 		case MAGMA_INFO:
 			return "\x1b[1;36m";
 		case MAGMA_WARN:

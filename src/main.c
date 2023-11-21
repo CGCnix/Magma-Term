@@ -291,7 +291,7 @@ int main(int argc, char **argv) {
 	int slave;
 	magma_ctx_t ctx = { 0 };
 	struct pollfd pfd;
-	magma_log_set_level(MAGMA_DEBUG);
+	magma_log_set_level(MAGMA_MEMINFO);
 
 	ctx.vt = calloc(1, sizeof(*ctx.vt));
 	ctx.vt->lines = calloc(sizeof(void *), 25);
@@ -362,9 +362,23 @@ int main(int argc, char **argv) {
 
 	}
 
+	magma_vk_renderer_deinit(ctx.renderer);
 	magma_backend_dispatch_events(ctx.backend);
 	magma_backend_deinit(ctx.backend);
 	magma_font_deinit(ctx.font);
+
+	xkb_state_unref(ctx.state);
+	xkb_keymap_unref(ctx.keymap);
+	xkb_context_unref(ctx.context);
+	
+	for(int32_t y = 0; y < ctx.vt->rows; y++) {
+		free(ctx.vt->lines[y]);
+	}
+
+	free(ctx.vt->lines);
+
+	free(ctx.vt);
+
 	FcFini();
 	return 0;
 }

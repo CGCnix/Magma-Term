@@ -46,6 +46,8 @@ void magma_xcb_backend_get_vk_exts(magma_backend_t *backend, char ***extensions,
 	*size = sizeof(xcb_extensions) / sizeof(xcb_extensions[0]);
 
 	return;
+
+	UNUSED(backend);
 }
 
 VkResult magma_xcb_backend_get_vk_surface(magma_backend_t *backend, VkInstance instance,

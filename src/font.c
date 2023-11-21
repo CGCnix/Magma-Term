@@ -71,6 +71,7 @@ magma_font_t *magma_font_init(const char *fconfig_str) {
 	
 	magma_log_debug("%s\n", font_file);
 	ft_error = FT_New_Face(font->ft_lib, font_file, 0, &font->face);
+	free(font_file);
 	if(ft_error) {
 		magma_log_error("Failed to create FT Face: %d\n", FT_Error_String(ft_error));
 	}
@@ -100,4 +101,6 @@ void magma_font_deinit(magma_font_t *font) {
 	FcConfigDestroy(font->font_config);
 
 	FT_Done_FreeType(font->ft_lib);
+
+	free(font);
 }

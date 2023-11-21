@@ -151,7 +151,7 @@ void magma_backend_put_buffer(magma_backend_t *backend, magma_buf_t *buffer) {
 
 /*VULKAN STUFF*/
 void magma_backend_get_vk_exts(magma_backend_t *backend, char ***extensions, uint32_t *size) {
-	return backend->magma_backend_get_vk_exts(backend, extensions, size);
+	backend->magma_backend_get_vk_exts(backend, extensions, size);
 }
 
 VkResult magma_backend_get_vk_surface(magma_backend_t *backend, VkInstance instance, VkSurfaceKHR *surface) {
