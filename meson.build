@@ -1,10 +1,21 @@
-project('magma', 'c')
+project('magma', 'c', 
+    default_options: [
+    'c_std=c11',
+    'warning_level=3',
+    'werror=true'
+  ]
+)
 
 add_project_arguments('-D_XOPEN_SOURCE=700 -Wall -Werror -pedantic', language: 'c')
 
-deps = [ dependency('fontconfig'), dependency('freetype2'), dependency('xkbcommon'), dependency('xkbcommon-x11')]
+deps = [ dependency('fontconfig'), dependency('freetype2'), dependency('xkbcommon'), dependency('xkbcommon-x11'), dependency('vulkan')]
 
-src_files = [ 'src/main.c', 'src/vt.c', 'src/logger/log.c', 'src/backend/backend.c']
+src_files = [ 'src/main.c', 'src/font.c', 'src/vt.c', 'src/logger/log.c', 'src/backend/backend.c', 'src/renderer/vk/vk.c', 'src/renderer/vk/instance.c', 'src/renderer/vk/device.c', 'src/renderer/vk/images.c', 'src/renderer/vk/pipeline.c', 'src/renderer/vk/command_buffers.c']
+
+if get_option('buildtype').startswith('debug')
+  add_project_arguments('-DMAGMA_VK_DEBUG', language: 'c')
+  src_files += 'src/renderer/vk/allocator.c'
+endif
 
 if get_option('disable-xcb')
   message('libxcb disabled you will be unable to run this build on X')

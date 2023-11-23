@@ -1,3 +1,4 @@
+#include "magma/backend/backend.h"
 #include <wayland-client-protocol.h>
 #include <wayland-client.h>
 
@@ -17,18 +18,36 @@
 
 static void wl_keyboard_keymap(void *data, struct wl_keyboard *keyboard, uint32_t keymap_id, int32_t keymap_fd, uint32_t size) {
 	UNUSED(keyboard);
-	magma_wl_backend_t *wl;
-	char *keymap_str;
-	magma_log_debug("Kemap event: %d %d %d\n", keymap_id, keymap_fd, size);
+	UNUSED(keymap_id);
+	magma_wl_backend_t *wl = data;
 
-	wl = data;
+	wl->kmsize = size;
+	wl->keymap_fd = keymap_fd;
 
-	keymap_str = mmap(NULL, size, PROT_READ, MAP_SHARED, keymap_fd, 0);
-
-
-	wl->xkb_keymap = xkb_keymap_new_from_buffer(wl->xkb_context, keymap_str, size - 1, XKB_KEYMAP_FORMAT_TEXT_V1, XKB_KEYMAP_COMPILE_NO_FLAGS);
+	if(wl->impl.keymap) {
+		wl->impl.keymap(data, wl->impl.keymap_data);
+	}
 	
-	wl->xkb_state = xkb_state_new(wl->xkb_keymap);
+}
+
+struct xkb_keymap *magma_wl_backend_get_xkbmap(magma_backend_t *backend, struct xkb_context *context) {
+	magma_wl_backend_t *wl = (void*)backend;
+	struct xkb_keymap *keymap;
+	char *keymap_str;
+
+	keymap_str = mmap(NULL, wl->kmsize, PROT_READ, MAP_SHARED, wl->keymap_fd, 0);
+
+
+	keymap = xkb_keymap_new_from_buffer(context, keymap_str, wl->kmsize - 1, XKB_KEYMAP_FORMAT_TEXT_V1, XKB_KEYMAP_COMPILE_NO_FLAGS);
+
+	munmap(keymap_str, wl->kmsize);
+
+	return keymap;
+}
+
+struct xkb_state *magma_wl_backend_get_xkbstate(magma_backend_t *backend, struct xkb_keymap *keymap) {
+	UNUSED(backend);
+	return xkb_state_new(keymap);
 }
 
 static void wl_keyboard_enter(void *data, struct wl_keyboard *keyboard, uint32_t serial, struct wl_surface *surface, struct wl_array *keys) {
@@ -48,25 +67,12 @@ static void wl_keyboard_leave(void *data, struct wl_keyboard *keyboard, uint32_t
 
 static void wl_keyboard_key(void *data, struct wl_keyboard *keyboard, uint32_t serial, uint32_t time, uint32_t key, uint32_t state) {
 	magma_wl_backend_t *wl;
-	char *buffer;
-	size_t size;
-	magma_log_debug("Key Event: %d(%d)\n", key, state);
 	UNUSED(time);
 	UNUSED(serial);
 	UNUSED(keyboard);
 	wl = data;
 
-
-	size = xkb_state_key_get_utf8(wl->xkb_state, key + 8, NULL, 0) + 1;
-
-	buffer = calloc(1, size);
-	
-	xkb_state_key_get_utf8(wl->xkb_state, key + 8, buffer, size);
-
-	if(state) {
-		wl->impl.key_press(data, buffer, size - 1, wl->impl.key_data);
-	}
-	free(buffer);	
+	wl->impl.key_press(data, key + 8, state, wl->impl.key_data);
 }
 
 static void wl_keyboard_mods(void *data, struct wl_keyboard *keyboard, uint32_t serial, uint32_t mods_depressed, uint32_t mods_latched, uint32_t mods_locked, uint32_t group) {

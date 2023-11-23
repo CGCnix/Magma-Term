@@ -1,8 +1,10 @@
 #pragma once
 
+#include <stdint.h>
 #include <wayland-client.h>
 
 #include <magma/private/backend/backend.h>
+#include <xkbcommon/xkbcommon.h>
 
 
 typedef struct magma_wl_backend {
@@ -23,14 +25,14 @@ typedef struct magma_wl_backend {
 	struct xdg_surface *xdg_surface;
 	struct xdg_toplevel *xdg_toplevel;
 
-	struct xkb_context *xkb_context;
-	struct xkb_keymap *xkb_keymap;
-	struct xkb_state *xkb_state;
+	uint32_t kmsize;
+	int32_t keymap_fd;
 
 	int display_fd;
 	uint32_t width, height;
 } magma_wl_backend_t;
 
-
+struct xkb_keymap *magma_wl_backend_get_xkbmap(magma_backend_t *backend, struct xkb_context *context);
+struct xkb_state *magma_wl_backend_get_xkbstate(magma_backend_t *backend, struct xkb_keymap *keymap);
 void wl_seat_name(void *data, struct wl_seat *seat, const char *name);
 void wl_seat_capabilities(void *data, struct wl_seat *seat, uint32_t capabilities);

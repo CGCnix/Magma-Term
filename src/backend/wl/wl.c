@@ -27,7 +27,41 @@
 #include <magma/backend/backend.h>
 #include <magma/logger/log.h>
 
+#define VK_USE_PLATFORM_WAYLAND_KHR
+#include <vulkan/vulkan.h>
+#include <vulkan/vulkan_wayland.h>
+
 #define UNUSED(x) ((void)x)
+
+
+/*VULKAN STUFF*/
+void magma_wl_backend_get_vk_exts(magma_backend_t *backend, char ***extensions,
+		uint32_t *size) {
+	static char *wl_extensions[] = {
+		VK_KHR_SURFACE_EXTENSION_NAME,
+		VK_KHR_WAYLAND_SURFACE_EXTENSION_NAME,
+	};
+
+	*extensions = wl_extensions;
+	*size = sizeof(wl_extensions) / sizeof(wl_extensions[0]);
+
+	return;
+	UNUSED(backend);
+}
+
+VkResult magma_wl_backend_get_vk_surface(magma_backend_t *backend, VkInstance instance,
+		VkSurfaceKHR *surface) {
+	VkWaylandSurfaceCreateInfoKHR create_info = { 0 };
+	magma_wl_backend_t *wl = (void *)backend;
+
+	create_info.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR;
+	create_info.display = wl->display;
+	create_info.surface = wl->surface;
+
+	return vkCreateWaylandSurfaceKHR(instance, &create_info, NULL, surface);
+}
+
+
 
 const struct wl_seat_listener wl_seat_listener = {
 	.name = wl_seat_name,
@@ -95,7 +129,7 @@ static void xdg_toplevel_close(void *data, struct xdg_toplevel *xdg_toplevel) {
 }
 
 static void xdg_toplevel_wm_capabilities(void *data, struct xdg_toplevel *xdg_toplevel, struct wl_array *caps) {
-	magma_log_debug("xdg_toplevel_wm_caps\n");
+	magma_log_info("xdg_toplevel_wm_caps\n");
 	UNUSED(data);
 	UNUSED(xdg_toplevel);
 	UNUSED(caps);
@@ -169,21 +203,21 @@ static const struct wl_buffer_listener wl_buffer_listener = {
 
 void magma_wl_backend_put_buffer(magma_backend_t *backend, magma_buf_t *buffer) {
 	magma_wl_backend_t *wl = (void*)backend;
-	int fd = allocate_shm_fd(buffer->width * buffer->height * 4);
+	int fd = allocate_shm_fd(buffer->pitch * buffer->height);
 
 
-	void *data = mmap(NULL, buffer->width * buffer->height * 4, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	void *data = mmap(NULL, buffer->pitch * buffer->height, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
-	struct wl_shm_pool *pool = wl_shm_create_pool(wl->shm, fd, buffer->width * buffer->height * 4);
-	struct wl_buffer *buf = wl_shm_pool_create_buffer(pool, 0, buffer->width, buffer->height, buffer->width * 4, WL_SHM_FORMAT_ARGB8888);
+	struct wl_shm_pool *pool = wl_shm_create_pool(wl->shm, fd, buffer->pitch * buffer->height);
+	struct wl_buffer *buf = wl_shm_pool_create_buffer(pool, 0, buffer->width, buffer->height, buffer->pitch, WL_SHM_FORMAT_ARGB8888);
 	wl_shm_pool_destroy(pool);
 	close(fd);
 
 	wl_buffer_add_listener(buf, &wl_buffer_listener, NULL);
 
-	memcpy(data, buffer->buffer, buffer->width * buffer->height * 4);
+	memcpy(data, buffer->buffer, buffer->pitch * buffer->height);
 
-	munmap(data, buffer->width * buffer->height * 4);
+	munmap(data, buffer->pitch * buffer->height);
 
 	free(buffer->buffer);
 	wl_surface_damage_buffer(wl->surface, 0, 0, buffer->width, buffer->height);
@@ -194,19 +228,13 @@ void magma_wl_backend_put_buffer(magma_backend_t *backend, magma_buf_t *buffer) 
 
 void magma_wl_backend_start(magma_backend_t *backend) {
 	magma_wl_backend_t *wl = (void*)backend;
-	
+
 	wl_surface_commit(wl->surface);
 	wl_display_flush(wl->display);
 }
 
 void magma_wl_backend_deinit(magma_backend_t *backend) {
 	magma_wl_backend_t *wl = (void*)backend;
-
-	xkb_state_unref(wl->xkb_state);
-
-	xkb_keymap_unref(wl->xkb_keymap);
-
-	xkb_context_unref(wl->xkb_context);
 
 	xdg_toplevel_destroy(wl->xdg_toplevel);
 	
@@ -254,12 +282,15 @@ magma_backend_t *magma_wl_backend_init(void) {
 	wl->xdg_toplevel = xdg_surface_get_toplevel(wl->xdg_surface);
 	xdg_toplevel_add_listener(wl->xdg_toplevel, &xdg_toplevel_listener, wl);
 
-	wl->xkb_context = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
 	wl->impl.start = magma_wl_backend_start;
 	wl->impl.dispatch_events = magma_wl_backend_dispatch;
 	wl->impl.put_buffer = magma_wl_backend_put_buffer;
 	wl->impl.deinit = magma_wl_backend_deinit;
-
+	
+	wl->impl.get_state = magma_wl_backend_get_xkbstate;
+	wl->impl.get_kmap = magma_wl_backend_get_xkbmap;
+	wl->impl.magma_backend_get_vk_surface = magma_wl_backend_get_vk_surface;
+	wl->impl.magma_backend_get_vk_exts = magma_wl_backend_get_vk_exts;
 
 	return (void*)wl;
 }

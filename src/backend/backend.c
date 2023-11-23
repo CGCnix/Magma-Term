@@ -8,6 +8,7 @@
 #include <magma/backend/backend.h>
 #include <magma/private/backend/backend.h>
 #include <magma/logger/log.h>
+#include <xkbcommon/xkbcommon.h>
 
 #ifndef _MAGMA_NO_XCB_
 	#include <magma/backend/xcb.h>
@@ -116,7 +117,7 @@ void magma_backend_set_on_button(magma_backend_t *backend, void (*button_press)(
 	backend->button_data = data;
 }
 
-void magma_backend_set_on_key(magma_backend_t *backend, void (*key_press)(magma_backend_t *backend, char *utf8, int length, void *data), void *data) {
+void magma_backend_set_on_key(magma_backend_t *backend, PFN_MAGMAKEYCB key_press, void *data) {
 	backend->key_press = key_press;
 	backend->key_data = data;
 }
@@ -131,6 +132,29 @@ void magma_backend_set_on_cursor(magma_backend_t *backend, void (*cursor_motion)
 	backend->cursor_data = data;
 }
 
+void magma_backend_set_on_keymap(magma_backend_t *backend, PFN_MAGMAKEYMAPCB keymap, void *data) {
+	backend->keymap = keymap;
+	backend->keymap_data = data;
+}
+
+struct xkb_keymap *magma_backend_get_xkbmap(magma_backend_t *backend, struct xkb_context *context) {
+	return backend->get_kmap(backend, context);
+}
+
+struct xkb_state *magma_backend_get_xkbstate(magma_backend_t *backend, struct xkb_keymap *keymap) {
+	return backend->get_state(backend, keymap);
+}
+
 void magma_backend_put_buffer(magma_backend_t *backend, magma_buf_t *buffer) {
 	backend->put_buffer(backend, buffer);
+}
+
+/*VULKAN STUFF*/
+void magma_backend_get_vk_exts(magma_backend_t *backend, char ***extensions, uint32_t *size) {
+	backend->magma_backend_get_vk_exts(backend, extensions, size);
+}
+
+VkResult magma_backend_get_vk_surface(magma_backend_t *backend, VkInstance instance, VkSurfaceKHR *surface) {
+	return backend->magma_backend_get_vk_surface(backend, instance, surface);
+
 }

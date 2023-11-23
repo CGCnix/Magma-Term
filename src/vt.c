@@ -131,7 +131,7 @@ void csi_escape_handle(int fd, magma_vt_t *vt) {
 
 void vt_read_input(magma_vt_t *magmavt) {
 	uint8_t byte;
-	utf32_t unicode;
+	utf32_t unicode = 0;
 	read(magmavt->master, &byte, 1);
 
 	/*ESCAPE CODE*/
@@ -152,17 +152,18 @@ void vt_read_input(magma_vt_t *magmavt) {
 	magmavt->lines[magmavt->buf_y][magmavt->buf_x].unicode = unicode;
 	magmavt->lines[magmavt->buf_y][magmavt->buf_x].fg = magmavt->fg;
 	magmavt->lines[magmavt->buf_y][magmavt->buf_x].attributes = magmavt->attributes;
-
-
-	if(byte == '\n' || magmavt->buf_x > magmavt->cols-2) {
+	if(byte == 0x08) {
+		magmavt->buf_x--;
+	} else if(byte == 0x9) {
+		magmavt->buf_x = ((magmavt->buf_x) | (8 - 1)) + 1;
+	} else if(byte == '\n' || magmavt->buf_x > magmavt->cols-2) {
 		magmavt->buf_y++;
 		magmavt->buf_x = 0;
 	} else {
 		magmavt->buf_x++;
 	}
-
-	magma_log_debug("%d %d\n", magmavt->buf_y, magmavt->rows);
-	if(magmavt->buf_y >= magmavt->rows - 1) {
+	
+	if(magmavt->buf_y >= magmavt->rows) {
 		for(int i = 1; i < magmavt->rows; i++) {
 				memmove(magmavt->lines[i-1], magmavt->lines[i], magmavt->cols * sizeof(glyph_t));
 			magmavt->buf_x = 0;

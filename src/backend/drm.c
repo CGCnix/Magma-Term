@@ -1,3 +1,4 @@
+#include "magma/backend/backend.h"
 #include <poll.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -26,6 +27,8 @@
 #include <sys/ioctl.h>
 #include <sys/vt.h>
 
+#define UNUSED(x) ((void)x)
+
 typedef struct magma_drm_fb {
 	uint32_t handle;
 	uint32_t fb_id;
@@ -51,16 +54,13 @@ typedef struct magma_drm_backend {
 	drmModeCrtcPtr crtc;
 
 	magma_drm_fb_t *fb;
-
-	struct xkb_context *xkbctx;
-	struct xkb_keymap *xkbmap;
-	struct xkb_state *xkbstate;
 } magma_drm_backend_t;
 
 drmModeConnectorPtr magma_drm_backend_find_first_connector(int fd, uint32_t *connectors, int connector_count) {
 	int i;
 	for(i = 0; i < connector_count; i++) {
 		drmModeConnectorPtr connector = drmModeGetConnector(fd, connectors[i]);
+		magma_log_error("Connector(%i): %p\n", connectors[i], connector);
 		if(!connector) {
 			magma_log_error("Failed to get connector id(%d) %m\n", connectors[i]);
 			continue;
@@ -91,6 +91,7 @@ magma_drm_fb_t *magma_drm_backend_create_fb(int fd, uint32_t width, uint32_t hei
 	fb->bpp = bpp;
 	fb->depth = depth;
 
+	
 	
 	res = drmModeCreateDumbBuffer(fd, width, height, bpp, 0, &fb->handle, &fb->pitch, &fb->size);
 	if(res < 0) {
@@ -131,8 +132,14 @@ err_calloc:
 
 void magma_drm_backend_start(magma_backend_t *backend) {
 	magma_drm_backend_t *drm = (void *)backend;
+	if(drm->impl.keymap) {
+		drm->impl.keymap(backend, drm->impl.keymap_data);
+	}
 
-	drmModeSetCrtc(drm->fd, drm->crtc->crtc_id, drm->fb->fb_id, 0, 0, &drm->connector->connector_id, 1, &drm->connector->modes[0]);
+	if(drmModeSetCrtc(drm->fd, drm->crtc->crtc_id, drm->fb->fb_id, 0, 0, &drm->connector->connector_id, 1, &drm->connector->modes[0])) {
+		magma_log_fatal("Failed to set CRTC\n %d %d %d\n %d %d %d %d\n%m\n", drm->fd, drm->crtc->crtc_id, drm->fb->fb_id, 0, 0, drm->connector->connector_id, 1);
+		exit(1);
+	}
 }
 
 void magma_drm_backend_deinit(magma_backend_t *backend) {
@@ -163,52 +170,31 @@ void magma_drm_xkb_update_mods(struct xkb_state *state, int pressed, xkb_mod_mas
 			0, 0, 0, 0, 0);
 }
 
-void magma_drm_backend_key_press(magma_drm_backend_t *drm, uint32_t detail) {
-	char *buffer;
-	int length;
-	if(detail == 50) {
-		magma_drm_xkb_update_mods(drm->xkbstate, 1, XCB_MOD_MASK_SHIFT);
-		return;
-	}
-	if(detail == 108) {
-		magma_drm_xkb_update_mods(drm->xkbstate, 1, XCB_MOD_MASK_5);
-		return;
-	}
+struct xkb_keymap *magma_drm_backend_get_xkbmap(magma_backend_t *backend, struct xkb_context *context) {
+	/*TODO: make is so people can get different keymaps*/
+	UNUSED(backend);
+	struct xkb_rule_names names = {
+		.rules = NULL,
+		.model = "pc105",
+		.layout = "de",
+		.variant = NULL,
+		.options = "terminate:ctrl_alt_bksp"
 
-	length = xkb_state_key_get_utf8(drm->xkbstate, detail, NULL, 0) + 1;
-	
-	buffer = calloc(1, length);
+	};
 
-	xkb_state_key_get_utf8(drm->xkbstate, detail, buffer, length);
-	
+	return xkb_keymap_new_from_names(context, &names, XKB_KEYMAP_COMPILE_NO_FLAGS);
+}
 
-	for(int i = 0; i < length; i++) {
-		printf("%u, ", buffer[i] & 0xff);
-	}
-	printf("\n");
+struct xkb_state *magma_drm_backend_get_xkbstate(magma_backend_t *backend, struct xkb_keymap *keymap) {
+	return xkb_state_new(keymap);
+	UNUSED(backend);
+}
 
-	
-
+void magma_drm_backend_key_press(magma_drm_backend_t *drm, uint32_t detail, int32_t value) {
 	if(drm->impl.key_press) {	
-		drm->impl.key_press((void*)drm, buffer, length - 1, drm->impl.key_data);
+		drm->impl.key_press((void*)drm, detail, value, drm->impl.key_data);
 	}
-
 }
-
-void magma_drm_backend_key_release(magma_drm_backend_t *xcb, uint32_t detail) {
-	printf("REL\n");
-	if(detail == 50) {
-		magma_drm_xkb_update_mods(xcb->xkbstate, 0, XCB_MOD_MASK_SHIFT);
-	}
-	if(detail == 108) {
-		magma_drm_xkb_update_mods(xcb->xkbstate, 0, XCB_MOD_MASK_5);
-		return;
-	}
-
-
-}
-
-
 
 void magma_drm_backend_key(magma_drm_backend_t *drm) {
 	struct input_event ev;
@@ -216,11 +202,7 @@ void magma_drm_backend_key(magma_drm_backend_t *drm) {
 	read(drm->keyfd, &ev, 24);
 
 	if(ev.type == EV_KEY) {
-		if(ev.value) {
-			magma_drm_backend_key_press(drm, ev.code + 8);
-		} else {
-			magma_drm_backend_key_release(drm, ev.code + 8);
-		}
+		magma_drm_backend_key_press(drm, ev.code + 8, ev.value);
 	}
 }
 
@@ -276,6 +258,7 @@ bool magma_drm_check_master(int fd) {
 magma_backend_t *magma_drm_backend_init(void) {
 	magma_drm_backend_t *drm;
 	char *drm_dev_path, *key_dev_path;
+	
 
 	drm = calloc(1, sizeof(magma_drm_backend_t));
 	if(!drm) {
@@ -297,6 +280,7 @@ magma_backend_t *magma_drm_backend_init(void) {
 		goto err_open_drm;
 	}
 
+	magma_log_warn("%d %d\n", drmIsKMS(drm->fd), drmIsMaster(drm->fd));
 	if(!magma_drm_check_master(drm->fd)) {
 		goto err_not_master;
 	}
@@ -331,32 +315,21 @@ magma_backend_t *magma_drm_backend_init(void) {
 		goto err_get_crtc;
 	}
 
-	drm->fb = magma_drm_backend_create_fb(drm->fd, 1600, 900, 32, 24);
+	drm->fb = magma_drm_backend_create_fb(drm->fd, 1920, 1080, 32, 24);
 	if(!drm->fb) {
 		magma_log_error("Failed to allocate FB: %p %m\n");
 		goto err_create_fb;
 	}
 
-	/*Not gonnna write error paths as I wanna move this out of here*/
-	drm->xkbctx = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
-
-	struct xkb_rule_names names = {
-		.rules = NULL,
-		.model = "pc105",
-		.layout = "de",
-		.variant = NULL,
-		.options = "terminate:ctrl_alt_bksp"
-
-	};
-	
-	drm->xkbmap = xkb_keymap_new_from_names(drm->xkbctx, &names, XKB_KEYMAP_COMPILE_NO_FLAGS);
-	drm->xkbstate = xkb_state_new(drm->xkbmap);
+	magma_log_fatal("This DRM backend is a mess we refuse to start it without you taking some knowledge that you are starting messy code");
+	exit(1);
 
 	drm->impl.start = magma_drm_backend_start;
 	drm->impl.dispatch_events = magma_drm_backend_dispatch;
 	drm->impl.put_buffer = magma_drm_backend_put_buffer;
 	drm->impl.deinit = magma_drm_backend_deinit;
-
+	drm->impl.get_kmap = magma_drm_backend_get_xkbmap;
+	drm->impl.get_state = magma_drm_backend_get_xkbstate;
 	return (void *)drm;
 
 err_create_fb:
