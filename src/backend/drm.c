@@ -60,6 +60,7 @@ drmModeConnectorPtr magma_drm_backend_find_first_connector(int fd, uint32_t *con
 	int i;
 	for(i = 0; i < connector_count; i++) {
 		drmModeConnectorPtr connector = drmModeGetConnector(fd, connectors[i]);
+		magma_log_error("Connector(%i): %p\n", connectors[i], connector);
 		if(!connector) {
 			magma_log_error("Failed to get connector id(%d) %m\n", connectors[i]);
 			continue;
@@ -90,6 +91,7 @@ magma_drm_fb_t *magma_drm_backend_create_fb(int fd, uint32_t width, uint32_t hei
 	fb->bpp = bpp;
 	fb->depth = depth;
 
+	
 	
 	res = drmModeCreateDumbBuffer(fd, width, height, bpp, 0, &fb->handle, &fb->pitch, &fb->size);
 	if(res < 0) {
@@ -313,7 +315,7 @@ magma_backend_t *magma_drm_backend_init(void) {
 		goto err_get_crtc;
 	}
 
-	drm->fb = magma_drm_backend_create_fb(drm->fd, 0, 0, 32, 24);
+	drm->fb = magma_drm_backend_create_fb(drm->fd, 1920, 1080, 32, 24);
 	if(!drm->fb) {
 		magma_log_error("Failed to allocate FB: %p %m\n");
 		goto err_create_fb;

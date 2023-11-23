@@ -117,21 +117,15 @@ static VkResult magma_vk_check_extensions(char **requested, uint32_t size) {
 
 static VkResult magma_vk_get_required_extensions(magma_backend_t *backend,
 		char ***extensions, uint32_t *size) {
-	char **backend_extensions;
 	uint32_t backend_ext_sz = 0;
 
 	if(extensions == NULL || size == NULL || *extensions != NULL) {
 		return VK_ERROR_UNKNOWN;
 	}
 
-	magma_backend_get_vk_exts(backend, &backend_extensions, &backend_ext_sz);	
-
 	*extensions = calloc(sizeof(char *), backend_ext_sz + 1);
 
-	for(uint32_t i = 0; i < backend_ext_sz; i++) {
-		extensions[0][i] = backend_extensions[i];
-	}
-
+	((void)backend);
 
 #ifdef MAGMA_VK_DEBUG
 	extensions[0][backend_ext_sz] = VK_EXT_DEBUG_UTILS_EXTENSION_NAME;
@@ -152,7 +146,6 @@ VkResult magma_vk_create_instance(magma_backend_t *backend, VkAllocationCallback
 	VkResult res = 0;
 	VkInstanceCreateInfo create_info = { 0 };
 	VkApplicationInfo app_info = { 0 };
-	VkDebugUtilsMessengerCreateInfoEXT debug_msg = { 0 };
 	uint32_t layer_count = 0, ext_count = 0;
 	char **extensions = NULL;
 
@@ -163,6 +156,7 @@ VkResult magma_vk_create_instance(magma_backend_t *backend, VkAllocationCallback
 	 * like to this.
 	 */
 
+	VkDebugUtilsMessengerCreateInfoEXT debug_msg = { 0 };	
 	const char *layers[] = {
 		"VK_LAYER_KHRONOS_validation",
 	};
@@ -186,9 +180,7 @@ VkResult magma_vk_create_instance(magma_backend_t *backend, VkAllocationCallback
 	magma_vk_get_required_extensions(backend, &extensions, &ext_count);
 	
 	res = magma_vk_check_extensions(extensions, ext_count);
-	if(res != VK_SUCCESS) {
-		return res;
-	}
+
 
 	app_info.pEngineName = "MagmaVK";
 	app_info.engineVersion = 1;

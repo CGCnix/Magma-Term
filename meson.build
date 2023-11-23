@@ -10,7 +10,7 @@ add_project_arguments('-D_XOPEN_SOURCE=700 -Wall -Werror -pedantic', language: '
 
 deps = [ dependency('fontconfig'), dependency('freetype2'), dependency('xkbcommon'), dependency('xkbcommon-x11'), dependency('vulkan')]
 
-src_files = [ 'src/main.c', 'src/font.c', 'src/vt.c', 'src/logger/log.c', 'src/backend/backend.c', 'src/renderer/vk/vk.c', 'src/renderer/vk/instance.c', 'src/renderer/vk/device.c']
+src_files = [ 'src/main.c', 'src/font.c', 'src/vt.c', 'src/logger/log.c', 'src/backend/backend.c', 'src/renderer/vk/vk.c', 'src/renderer/vk/instance.c', 'src/renderer/vk/device.c', 'src/renderer/vk/images.c', 'src/renderer/vk/pipeline.c', 'src/renderer/vk/command_buffers.c']
 
 if get_option('buildtype').startswith('debug')
   add_project_arguments('-DMAGMA_VK_DEBUG', language: 'c')

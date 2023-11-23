@@ -24,7 +24,17 @@ static uint32_t total_allocates;
 static uint32_t total_frees;
 static uint32_t total_realloc;
 
-
+#define alloc_scope_str(scope) case VK_SYSTEM_ALLOCATION_SCOPE_ ## scope : return #scope;
+static const char *magma_vk_get_allocscope_str(VkSystemAllocationScope scope) {
+	switch (scope) {
+		alloc_scope_str(INSTANCE);
+		alloc_scope_str(CACHE);
+		alloc_scope_str(DEVICE);
+		alloc_scope_str(OBJECT);
+		alloc_scope_str(COMMAND);
+		default: return "Unknown";
+	}
+}
 
 static VKAPI_ATTR void * VKAPI_CALL magma_vk_allocate(void *pUserData, size_t size, 
 		size_t alignment, VkSystemAllocationScope allocationScope) {
@@ -35,7 +45,8 @@ static VKAPI_ATTR void * VKAPI_CALL magma_vk_allocate(void *pUserData, size_t si
 
 	addr = malloc(size);
 
-	magma_log_meminfo("Address: %p Allocated Size: %lu, Scope: %d\n", addr, size, allocationScope);
+	magma_log_meminfo("Address: %p Allocated Size: %lu, Scope: %s\n", 
+			addr, size, magma_vk_get_allocscope_str(allocationScope));
 
 	return addr;
 	UNUSED(pUserData);
@@ -53,8 +64,8 @@ static VKAPI_ATTR void * VKAPI_CALL magma_vk_reallocate(void *pUserData, void *p
 
 	magma_log_meminfo("Address: %p reallocated to %p\n"
 			"\tNew Size: %lu, Alignment: %lu\n"
-			"\tScope: %d\n", original, tmp, size, 
-			alignment, allocationScope);
+			"\tScope: %s\n", original, tmp, size, 
+			alignment, magma_vk_get_allocscope_str(allocationScope));
 
 	return tmp;
 	UNUSED(pUserData);

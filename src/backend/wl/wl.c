@@ -203,21 +203,21 @@ static const struct wl_buffer_listener wl_buffer_listener = {
 
 void magma_wl_backend_put_buffer(magma_backend_t *backend, magma_buf_t *buffer) {
 	magma_wl_backend_t *wl = (void*)backend;
-	int fd = allocate_shm_fd(buffer->width * buffer->height * 4);
+	int fd = allocate_shm_fd(buffer->pitch * buffer->height);
 
 
-	void *data = mmap(NULL, buffer->width * buffer->height * 4, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+	void *data = mmap(NULL, buffer->pitch * buffer->height, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
-	struct wl_shm_pool *pool = wl_shm_create_pool(wl->shm, fd, buffer->width * buffer->height * 4);
-	struct wl_buffer *buf = wl_shm_pool_create_buffer(pool, 0, buffer->width, buffer->height, buffer->width * 4, WL_SHM_FORMAT_ARGB8888);
+	struct wl_shm_pool *pool = wl_shm_create_pool(wl->shm, fd, buffer->pitch * buffer->height);
+	struct wl_buffer *buf = wl_shm_pool_create_buffer(pool, 0, buffer->width, buffer->height, buffer->pitch, WL_SHM_FORMAT_ARGB8888);
 	wl_shm_pool_destroy(pool);
 	close(fd);
 
 	wl_buffer_add_listener(buf, &wl_buffer_listener, NULL);
 
-	memcpy(data, buffer->buffer, buffer->width * buffer->height * 4);
+	memcpy(data, buffer->buffer, buffer->pitch * buffer->height);
 
-	munmap(data, buffer->width * buffer->height * 4);
+	munmap(data, buffer->pitch * buffer->height);
 
 	free(buffer->buffer);
 	wl_surface_damage_buffer(wl->surface, 0, 0, buffer->width, buffer->height);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <magma/renderer/vk.h>
+#include <stdint.h>
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
 
@@ -22,6 +23,25 @@ struct magma_vk_renderer {
 
 	VkPhysicalDevice phy_dev;
 	VkDevice device;
+
+	VkCommandPool command_pool;
+	VkCommandBuffer draw_buffer;
+	VkCommandBuffer transfer;
+
+	VkPipelineLayout pipeline_layout;
+	VkPipeline graphics_pipeline;
+
+	VkRenderPass render_pass;
+
+	VkImage vk_image;
+	VkImage dst_image;
+	VkImageView vk_image_view;
+	VkFramebuffer vkfb;
+
+	VkDeviceMemory src_mem;
+	VkDeviceMemory dst_mem;
+
+	uint32_t height,width;
 
 	struct queue_indicies indicies;
 	VkQueue queue; /*TODO: is it guranteeded we can relie on all queue 

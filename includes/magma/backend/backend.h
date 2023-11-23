@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stddef.h>
 #include <stdint.h>
 
 #include <xkbcommon/xkbcommon.h>
@@ -15,6 +16,8 @@ typedef struct magma_backend magma_backend_t;
  */
 typedef struct magma_buf {
 	uint32_t width, height;
+	uint32_t pitch;
+	size_t size;
 	uint8_t depth, bpp;
 	void *buffer;
 }magma_buf_t;

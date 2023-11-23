@@ -131,7 +131,7 @@ void csi_escape_handle(int fd, magma_vt_t *vt) {
 
 void vt_read_input(magma_vt_t *magmavt) {
 	uint8_t byte;
-	utf32_t unicode;
+	utf32_t unicode = 0;
 	read(magmavt->master, &byte, 1);
 
 	/*ESCAPE CODE*/
