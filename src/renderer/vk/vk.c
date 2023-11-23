@@ -254,7 +254,7 @@ magma_vk_renderer_t *magma_vk_renderer_init(magma_backend_t *backend) {
 
 	res = magma_vk_create_instance(backend, vk->alloc, &vk->instance);
 	if(res) {
-		magma_log_error("Failed to create vulkan interface\n");
+		magma_log_error("Failed to create vulkan interface %d\n", res);
 		goto error_vk_create_instance;
 	}
 
